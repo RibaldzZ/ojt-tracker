@@ -316,7 +316,7 @@
     <div class="card">
       <h2>Already registered? Check your status</h2>
       <div class="lookup-area">
-        <input type="text" id="lookup-srcode" placeholder="Enter your SR-Code (e.g., SR-2024-0001)" onkeydown="if(event.key==='Enter')lookupStudent()">
+        <input type="text" id="lookup-srcode" placeholder="Enter your SR-Code (e.g., AB-1234)" onkeydown="if(event.key==='Enter')lookupStudent()">
         <button class="btn btn-primary" onclick="lookupStudent()">Look Up</button>
       </div>
       <div id="lookup-result"></div>
@@ -328,7 +328,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>SR-Code</label>
-          <input type="text" id="reg-srcode" placeholder="SR-2024-0001">
+          <input type="text" id="reg-srcode" placeholder="AB-1234">
         </div>
         <div class="form-group">
           <label>Full Name</label>
@@ -548,6 +548,10 @@ async function registerStudent() {
 
   if (!srcode || !name || !section || !semester || !course) {
     showMsg("Please fill in all fields", "error");
+    return;
+  }
+  if (!/^[A-Za-z]{2}-\d{4}$/.test(srcode)) {
+    showMsg("SR-Code must be in XX-XXXX format (e.g., AB-1234)", "error");
     return;
   }
 
