@@ -208,14 +208,23 @@
 
   /* Messages */
   .msg {
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-bottom: 16px;
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    padding: 14px 24px;
+    border-radius: 10px;
     font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    max-width: 90%;
+    white-space: nowrap;
+    transition: opacity 0.3s;
   }
-  .msg-success { background: rgba(5, 150, 105, 0.12); border: 1px solid #059669; color: #34d399; }
-  .msg-error { background: rgba(220, 38, 38, 0.12); border: 1px solid #dc2626; color: #f87171; }
-  .msg-info { background: rgba(37, 99, 235, 0.12); border: 1px solid #2563eb; color: #60a5fa; }
+  .msg-success { background: rgba(5, 150, 105, 0.95); border: 1px solid #059669; color: #fff; }
+  .msg-error { background: rgba(220, 38, 38, 0.95); border: 1px solid #dc2626; color: #fff; }
+  .msg-info { background: rgba(37, 99, 235, 0.95); border: 1px solid #2563eb; color: #fff; }
   .msg.hidden { display: none; }
 
   /* Section toggles */
@@ -391,13 +400,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Coordinator Access (after Post-OJT, inside student mode) -->
+    <div style="text-align:center;margin:30px 0 10px;">
+      <button id="coord-login-btn" class="btn btn-secondary btn-sm" onclick="toggleCoordinatorView()">🔑 Coordinator Access</button>
+    </div>
   </div>
 
   <!-- ==================== COORDINATOR MODE ==================== -->
   <div id="coordinator-mode" class="hidden">
     <!-- Admin Login -->
     <div class="card" id="admin-login-card">
-      <h2>Coordinator Access</h2>
       <div class="form-row">
         <div class="form-group">
           <label>Admin Key</label>
@@ -459,10 +472,7 @@
       </div>
     </div>
   </div>
-  <!-- Footer with Coordinator Access -->
-  <footer style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #1e293b;">
-    <button id="coord-login-btn" class="btn btn-secondary btn-sm" onclick="toggleCoordinatorView()">🔑 Coordinator Access</button>
-  </footer>
+
 </div>
 
 <!-- Verification Modal -->
@@ -511,8 +521,13 @@ function showMsg(msg, type = "info") {
   const el = document.getElementById("msg");
   el.textContent = msg;
   el.className = `msg msg-${type}`;
+  el.style.opacity = "1";
   el.classList.remove("hidden");
-  setTimeout(() => el.classList.add("hidden"), 6000);
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => {
+    el.style.opacity = "0";
+    setTimeout(() => el.classList.add("hidden"), 300);
+  }, 5000);
 }
 
 function $(id) { return document.getElementById(id); }
