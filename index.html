@@ -547,75 +547,107 @@ function toggleSection(id) {
 
 // ─── Student: Lookup ───────────────────────────────────────
 async function lookupStudent() {
-  const srcode = $("lookup-srcode").value.trim();
-  if (!srcode) { showMsg("Enter an SR-Code", "error"); return; }
+  try {
+    const srcode = $("lookup-srcode").value.trim();
+    if (!srcode) { showMsg("Enter an SR-Code", "error"); return; }
 
-  const { ok, data } = await api("GET", null, `action=get&srcode=${encodeURIComponent(srcode)}`);
-  if (!ok) {
-    $("lookup-result").innerHTML = `<div class="msg msg-error">Student not found. Register below.</div>`;
-    currentStudent = null;
-    $("student-checklist").classList.add("hidden");
-    $("profile-update").classList.add("hidden");
-    return;
+    const { ok, data } = await api("GET", null, `action=get&srcode=${encodeURIComponent(srcode)}`);
+    if (!ok) {
+      $("lookup-result").innerHTML = `<div class="msg msg-error">Student not found. Register below.</div>`;
+      currentStudent = null;
+      $("student-checklist").classList.add("hidden");
+      $("profile-update").classList.add("hidden");
+      return;
+    }
+
+    if (!data?.student) {
+      showMsg("Student data is empty", "error");
+      return;
+    }
+
+    currentStudent = data.student;
+    localPreOjt = {};
+    localPostOjt = {};
+    renderStudentChecklist(data.student);
+    fillProfileUpdate(data.student);
+    $("lookup-result").innerHTML = `<div class="msg msg-success">Found: <strong>${data.student.name}</strong> (${data.student.srcode})</div>`;
+  } catch (e) {
+    console.error("lookupStudent error:", e);
+    showMsg("Lookup failed: " + e.message, "error");
   }
-
-  currentStudent = data.student;
-  localPreOjt = {};
-  localPostOjt = {};
-  renderStudentChecklist(data.student);
-  fillProfileUpdate(data.student);
-  $("lookup-result").innerHTML = `<div class="msg msg-success">Found: <strong>${data.student.name}</strong> (${data.student.srcode})</div>`;
 }
 
 // ─── Student: Register ─────────────────────────────────────
 async function registerStudent() {
-  const srcode = $("reg-srcode").value.trim();
-  const name = $("reg-name").value.trim();
-  const section = $("reg-section").value.trim();
-  const semester = $("reg-semester").value;
-  const course = $("reg-course").value;
-  const company = $("reg-company").value.trim();
+  try {
+    const srcode = $("reg-srcode").value.trim();
+    const name = $("reg-name").value.trim();
+    const section = $("reg-section").value.trim();
+    const semester = $("reg-semester").value;
+    const course = $("reg-course").value;
+    const company = $("reg-company").value.trim();
 
-  if (!srcode || !name || !section || !semester || !course) {
-    showMsg("Please fill in all fields", "error");
-    return;
+    if (!srcode || !name || !section || !semester || !course) {
+      showMsg("Please fill in all fields", "error");
+      return;
+    }
+    if (!/^\d{2}-\d{5}$/.test(srcode)) {
+      showMsg("SR-Code must be in XX-XXXXX format (e.g., 01-00001)", "error");
+      return;
+    }
+
+    const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course, company });
+    if (!ok) { showMsg(data.error || "Registration failed", "error"); return; }
+
+    // Build student object safely
+    const newStudent = {};
+    newStudent.srcode = srcode;
+    newStudent.name = name;
+    newStudent.section = section;
+    newStudent.semester = semester;
+    newStudent.course = course;
+    newStudent.company = company || "";
+    newStudent.preOjt = {};
+    newStudent.postOjt = {};
+    newStudent.verifiedPre = {};
+    newStudent.verifiedPost = {};
+    currentStudent = newStudent;
+
+    $("lookup-srcode").value = srcode;
+    localPreOjt = {};
+    localPostOjt = {};
+
+    showMsg("✅ Registered successfully! Now check off your Pre-OJT requirements.", "success");
+
+    if (typeof renderStudentChecklist === "function") renderStudentChecklist(currentStudent);
+    if (typeof fillProfileUpdate === "function") fillProfileUpdate(currentStudent);
+
+    // Clear registration form for next student
+    $("reg-srcode").value = "";
+    $("reg-name").value = "";
+    $("reg-section").value = "";
+    $("reg-semester").value = "";
+    $("reg-course").value = "";
+    $("reg-company").value = "";
+  } catch (e) {
+    console.error("REGISTRATION CRASH:", e);
+    showMsg("⚠️ Error: " + e.message, "error");
   }
-  if (!/^\d{2}-\d{5}$/.test(srcode)) {
-    showMsg("SR-Code must be in XX-XXXXX format (e.g., 01-00001)", "error");
-    return;
-  }
-
-  const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course, company });
-  if (!ok) { showMsg(data.error || "Registration failed", "error"); return; }
-
-  showMsg("✅ Registered successfully! Now check off your Pre-OJT requirements.", "success");
-
-  // Auto-fill lookup and show checklist
-  currentStudent = { srcode, name, section, semester, course, company: company || "", preOjt: {}, postOjt: {}, verifiedPre: {}, verifiedPost: {} };
-  $("lookup-srcode").value = srcode;
-  localPreOjt = {};
-  localPostOjt = {};
-  renderStudentChecklist(currentStudent);
-  fillProfileUpdate(currentStudent);
-
-  // Clear registration form for next student
-  $("reg-srcode").value = "";
-  $("reg-name").value = "";
-  $("reg-section").value = "";
-  $("reg-semester").value = "";
-  $("reg-course").value = "";
-  $("reg-company").value = "";
 }
 
 // ─── Profile Update ─────────────────────────────────────────
 function fillProfileUpdate(student) {
-  $("profile-srcode").value = student.srcode;
-  $("profile-name").value = student.name;
-  $("profile-section").value = student.section;
-  $("profile-semester").value = student.semester;
-  $("profile-course").value = student.course;
-  $("profile-company").value = student.company || "";
-  $("profile-update").classList.remove("hidden");
+  try {
+    $("profile-srcode").value = student?.srcode || "";
+    $("profile-name").value = student?.name || "";
+    $("profile-section").value = student?.section || "";
+    $("profile-semester").value = student?.semester || "";
+    $("profile-course").value = student?.course || "";
+    $("profile-company").value = student?.company || "";
+    $("profile-update").classList.remove("hidden");
+  } catch (e) {
+    console.warn("fillProfileUpdate error:", e);
+  }
 }
 
 async function updateProfile() {
@@ -640,82 +672,83 @@ async function updateProfile() {
 
 // ─── Student: Render Checklist ─────────────────────────────
 function renderStudentChecklist(student) {
-  $("student-checklist").classList.remove("hidden");
-  if (!student) { currentStudent = null; $("student-checklist").classList.add("hidden"); return; }
-  currentStudent = student;
+  try {
+    $("student-checklist").classList.remove("hidden");
+    if (!student) { currentStudent = null; $("student-checklist").classList.add("hidden"); return; }
+    currentStudent = student;
 
-  const preVerCount = Object.keys(student.verifiedPre || {}).length;
-  const allPreDone = preVerCount >= PRE_OJT.length;
+    const preVerCount = Object.keys(student.verifiedPre || {}).length;
+    const allPreDone = preVerCount >= PRE_OJT.length;
 
-  // Pre-OJT
-  const preList = $("pre-checklist");
-  preList.innerHTML = "";
-  PRE_OJT.forEach((req, i) => {
-    // Use local state if set, else server state
-    const checked = localPreOjt[i] !== undefined ? localPreOjt[i] : (student.preOjt?.[i] === true);
-    const verified = !!student.verifiedPre?.[i];
-    const verifiedDate = student.verifiedPre?.[i] || "";
-    const li = document.createElement("li");
-    li.className = verified ? "verified" : checked ? "checked" : "";
-    li.innerHTML = `
-      <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
-        onclick="togglePreOjt(${i})">
-      <span class="req-name">${req}</span>
-      ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
-        checked ? `<span class="req-status">Submitted (pending verification)</span>` :
-        `<span class="req-status">Not yet submitted</span>`}
-    `;
-    preList.appendChild(li);
-  });
+    // Pre-OJT
+    const preList = $("pre-checklist");
+    preList.innerHTML = "";
+    PRE_OJT.forEach((req, i) => {
+      try {
+        const checked = localPreOjt[i] !== undefined ? localPreOjt[i] : (student.preOjt?.[i] === true);
+        const verified = !!student.verifiedPre?.[i];
+        const verifiedDate = student.verifiedPre?.[i] || "";
+        const li = document.createElement("li");
+        li.className = verified ? "verified" : checked ? "checked" : "";
+        li.innerHTML = `
+          <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
+            onclick="togglePreOjt(${i})">
+          <span class="req-name">${req}</span>
+          ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
+            checked ? `<span class="req-status">Submitted (pending verification)</span>` :
+            `<span class="req-status">Not yet submitted</span>`}
+        `;
+        preList.appendChild(li);
+      } catch (e) { console.warn("Pre-OJT item error:", e); }
+    });
 
-  // Show save status indicator
-  $("pre-save-status").textContent = hasLocalChanges(localPreOjt, student?.preOjt || {}) ? "⚠️ Unsaved changes" : "";
+    // Show save status indicator
+    $("pre-save-status").textContent = hasLocalChanges(localPreOjt || {}, student?.preOjt || {}) ? "⚠️ Unsaved changes" : "";
 
-  // Post-OJT
-  const postSection = $("post-section");
-  const postArrow = $("arrow-post-section");
-  if (allPreDone) {
-    postSection.classList.remove("hidden");
-    postArrow.classList.add("open");
-  } else {
-    postSection.classList.add("hidden");
-    postArrow.classList.remove("open");
+    // Post-OJT
+    const postSection = $("post-section");
+    const postArrow = $("arrow-post-section");
+    try { postSection.classList.toggle("hidden", !allPreDone); postArrow.classList.toggle("open", allPreDone); } catch (e) {}
+
+    const postList = $("post-checklist");
+    postList.innerHTML = "";
+    POST_OJT.forEach((req, i) => {
+      try {
+        const checked = localPostOjt[i] !== undefined ? localPostOjt[i] : (student.postOjt?.[i] === true);
+        const verified = !!student.verifiedPost?.[i];
+        const verifiedDate = student.verifiedPost?.[i] || "";
+        const li = document.createElement("li");
+        li.className = verified ? "verified" : checked ? "checked" : "";
+        li.innerHTML = `
+          <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
+            onclick="togglePostOjt(${i})">
+          <span class="req-name">${req}</span>
+          ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
+            checked ? `<span class="req-status">Submitted (pending verification)</span>` :
+            `<span class="req-status">Not yet submitted</span>`}
+        `;
+        postList.appendChild(li);
+      } catch (e) { console.warn("Post-OJT item error:", e); }
+    });
+
+    $("post-save-status").textContent = hasLocalChanges(localPostOjt || {}, student?.postOjt || {}) ? "⚠️ Unsaved changes" : "";
+  } catch (e) {
+    console.error("renderStudentChecklist crashed:", e);
+    currentStudent = null;
+    $("student-checklist").classList.add("hidden");
   }
-
-  const postList = $("post-checklist");
-  postList.innerHTML = "";
-  POST_OJT.forEach((req, i) => {
-    const checked = localPostOjt[i] !== undefined ? localPostOjt[i] : (student.postOjt?.[i] === true);
-    const verified = !!student.verifiedPost?.[i];
-    const verifiedDate = student.verifiedPost?.[i] || "";
-    const li = document.createElement("li");
-    li.className = verified ? "verified" : checked ? "checked" : "";
-    li.innerHTML = `
-      <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
-        onclick="togglePostOjt(${i})">
-      <span class="req-name">${req}</span>
-      ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
-        checked ? `<span class="req-status">Submitted (pending verification)</span>` :
-        `<span class="req-status">Not yet submitted</span>`}
-    `;
-    postList.appendChild(li);
-  });
-
-  $("post-save-status").textContent = hasLocalChanges(localPostOjt, student?.postOjt || {}) ? "⚠️ Unsaved changes" : "";
 }
 
 // ─── Local toggle helpers ────────────────────────────────────
 function togglePreOjt(index) {
   if (!currentStudent) return;
-  const currentVal = localPreOjt[index] !== undefined ? localPreOjt[index] : (currentStudent.preOjt?.[index] === true);
-  localPreOjt[index] = !currentVal;
+  localPreOjt[index] = !(localPreOjt[index] !== undefined ? localPreOjt[index] : (currentStudent?.preOjt?.[index] === true));
   renderStudentChecklist(currentStudent);
 }
 
 function togglePostOjt(index) {
   if (!currentStudent) return;
-  const currentVal = localPostOjt[index] !== undefined ? localPostOjt[index] : (currentStudent.postOjt?.[index] === true);
-  localPostOjt[index] = !currentVal;
+  localPostOjt[index] = !(localPostOjt[index] !== undefined ? localPostOjt[index] : (currentStudent?.postOjt?.[index] === true));
   renderStudentChecklist(currentStudent);
 }
 
