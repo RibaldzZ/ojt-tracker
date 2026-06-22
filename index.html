@@ -353,7 +353,45 @@
           <input type="text" id="reg-course" placeholder="e.g., BSIT, BSCS, ACT">
         </div>
       </div>
-      <button class="btn btn-success" onclick="registerStudent()">Register / Update</button>
+      <div class="form-group">
+        <label>Company / Agency (optional — update later)</label>
+        <input type="text" id="reg-company" placeholder="e.g., DOST, Accenture, Local Gov't">
+      </div>
+      <button class="btn btn-success" onclick="registerStudent()">Register</button>
+    </div>
+
+    <!-- Profile Update (shown after lookup/register) -->
+    <div id="profile-update" class="card hidden">
+      <h2>Update Profile</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>SR-Code</label>
+          <input type="text" id="profile-srcode" readonly style="opacity:0.6;">
+        </div>
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="profile-name" readonly style="opacity:0.6;">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Section</label>
+          <input type="text" id="profile-section" readonly style="opacity:0.6;">
+        </div>
+        <div class="form-group">
+          <label>Semester</label>
+          <input type="text" id="profile-semester" readonly style="opacity:0.6;">
+        </div>
+        <div class="form-group">
+          <label>Course</label>
+          <input type="text" id="profile-course" readonly style="opacity:0.6;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Company / Agency</label>
+        <input type="text" id="profile-company" placeholder="Enter your deployment company">
+      </div>
+      <button class="btn btn-primary" onclick="updateProfile()">Update Profile</button>
     </div>
 
     <!-- Pre-OJT Requirements (shown after lookup/register) -->
@@ -364,8 +402,10 @@
           <span class="arrow" id="arrow-pre-section">▶</span>
         </div>
         <div id="pre-section">
-          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Check off requirements you have submitted. Marks are saved even if incomplete.</p>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Check off requirements you have submitted, then click Save.</p>
           <ul class="checklist" id="pre-checklist"></ul>
+          <button class="btn btn-primary" style="margin-top:12px;" onclick="savePreOjt()">💾 Save Pre-OJT</button>
+          <span id="pre-save-status" style="color:#94a3b8;font-size:0.8rem;margin-left:10px;"></span>
         </div>
       </div>
 
@@ -377,6 +417,8 @@
         <div id="post-section" class="hidden">
           <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Available after completing all Pre-OJT requirements.</p>
           <ul class="checklist" id="post-checklist"></ul>
+          <button class="btn btn-primary" style="margin-top:12px;" onclick="savePostOjt()">💾 Save Post-OJT</button>
+          <span id="post-save-status" style="color:#94a3b8;font-size:0.8rem;margin-left:10px;"></span>
         </div>
       </div>
     </div>
@@ -491,6 +533,8 @@ const POST_OJT = [
 // ─── State ──────────────────────────────────────────────────
 let adminKey = "";
 let currentStudent = null; // { srcode, name, ... }
+let localPreOjt = {}; // unsaved pre-OJT checkbox changes
+let localPostOjt = {}; // unsaved post-OJT checkbox changes
 
 // ─── Helpers ──────────────────────────────────────────────────
 function showMsg(msg, type = "info") {
@@ -530,11 +574,15 @@ async function lookupStudent() {
     $("lookup-result").innerHTML = `<div class="msg msg-error">Student not found. Register below.</div>`;
     currentStudent = null;
     $("student-checklist").classList.add("hidden");
+    $("profile-update").classList.add("hidden");
     return;
   }
 
   currentStudent = data.student;
+  localPreOjt = {};
+  localPostOjt = {};
   renderStudentChecklist(data.student);
+  fillProfileUpdate(data.student);
   $("lookup-result").innerHTML = `<div class="msg msg-success">Found: <strong>${data.student.name}</strong> (${data.student.srcode})</div>`;
 }
 
@@ -545,6 +593,7 @@ async function registerStudent() {
   const section = $("reg-section").value.trim();
   const semester = $("reg-semester").value;
   const course = $("reg-course").value;
+  const company = $("reg-company").value.trim();
 
   if (!srcode || !name || !section || !semester || !course) {
     showMsg("Please fill in all fields", "error");
@@ -555,15 +604,49 @@ async function registerStudent() {
     return;
   }
 
-  const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course });
+  const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course, company });
   if (!ok) { showMsg(data.error || "Registration failed", "error"); return; }
 
   showMsg("✅ Registered successfully! Now check off your Pre-OJT requirements.", "success");
 
   // Auto-fill lookup and show checklist
-  currentStudent = { srcode, name, section, semester, course, preOjt: {}, postOjt: {}, verifiedPre: {}, verifiedPost: {} };
+  currentStudent = { srcode, name, section, semester, course, company: company || "", preOjt: {}, postOjt: {}, verifiedPre: {}, verifiedPost: {} };
   $("lookup-srcode").value = srcode;
+  localPreOjt = {};
+  localPostOjt = {};
   renderStudentChecklist(currentStudent);
+  fillProfileUpdate(currentStudent);
+}
+
+// ─── Profile Update ─────────────────────────────────────────
+function fillProfileUpdate(student) {
+  $("profile-srcode").value = student.srcode;
+  $("profile-name").value = student.name;
+  $("profile-section").value = student.section;
+  $("profile-semester").value = student.semester;
+  $("profile-course").value = student.course;
+  $("profile-company").value = student.company || "";
+  $("profile-update").classList.remove("hidden");
+}
+
+async function updateProfile() {
+  if (!currentStudent) return;
+  const company = $("profile-company").value.trim();
+  const s = currentStudent;
+
+  const { ok, data } = await api("POST", {
+    action: "register",
+    srcode: s.srcode,
+    name: s.name,
+    section: s.section,
+    semester: s.semester,
+    course: s.course,
+    company,
+  });
+  if (!ok) { showMsg(data.error || "Update failed", "error"); return; }
+
+  currentStudent.company = company;
+  showMsg("✅ Profile updated! Company set to: " + (company || "(none)"), "success");
 }
 
 // ─── Student: Render Checklist ─────────────────────────────
@@ -572,21 +655,21 @@ function renderStudentChecklist(student) {
   $("student-checklist").classList.remove("hidden");
 
   const preVerCount = Object.keys(student.verifiedPre || {}).length;
-  const postVerCount = Object.keys(student.verifiedPost || {}).length;
   const allPreDone = preVerCount >= PRE_OJT.length;
 
   // Pre-OJT
   const preList = $("pre-checklist");
   preList.innerHTML = "";
   PRE_OJT.forEach((req, i) => {
-    const checked = student.preOjt?.[i] === true;
+    // Use local state if set, else server state
+    const checked = localPreOjt[i] !== undefined ? localPreOjt[i] : (student.preOjt?.[i] === true);
     const verified = !!student.verifiedPre?.[i];
     const verifiedDate = student.verifiedPre?.[i] || "";
     const li = document.createElement("li");
     li.className = verified ? "verified" : checked ? "checked" : "";
     li.innerHTML = `
       <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
-        onchange="updatePreOjt(${i}, this.checked)">
+        onclick="togglePreOjt(${i})">
       <span class="req-name">${req}</span>
       ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
         checked ? `<span class="req-status">Submitted (pending verification)</span>` :
@@ -594,6 +677,9 @@ function renderStudentChecklist(student) {
     `;
     preList.appendChild(li);
   });
+
+  // Show save status indicator
+  $("pre-save-status").textContent = hasLocalChanges(localPreOjt, student.preOjt) ? "⚠️ Unsaved changes" : "";
 
   // Post-OJT
   const postSection = $("post-section");
@@ -609,14 +695,14 @@ function renderStudentChecklist(student) {
   const postList = $("post-checklist");
   postList.innerHTML = "";
   POST_OJT.forEach((req, i) => {
-    const checked = student.postOjt?.[i] === true;
+    const checked = localPostOjt[i] !== undefined ? localPostOjt[i] : (student.postOjt?.[i] === true);
     const verified = !!student.verifiedPost?.[i];
     const verifiedDate = student.verifiedPost?.[i] || "";
     const li = document.createElement("li");
     li.className = verified ? "verified" : checked ? "checked" : "";
     li.innerHTML = `
       <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
-        onchange="updatePostOjt(${i}, this.checked)">
+        onclick="togglePostOjt(${i})">
       <span class="req-name">${req}</span>
       ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
         checked ? `<span class="req-status">Submitted (pending verification)</span>` :
@@ -624,36 +710,82 @@ function renderStudentChecklist(student) {
     `;
     postList.appendChild(li);
   });
+
+  $("post-save-status").textContent = hasLocalChanges(localPostOjt, student.postOjt) ? "⚠️ Unsaved changes" : "";
 }
 
-// ─── Student: Update Pre-OJT ────────────────────────────────
-async function updatePreOjt(index, checked) {
+// ─── Local toggle helpers ────────────────────────────────────
+function togglePreOjt(index) {
   if (!currentStudent) return;
-  const preOjt = { ...currentStudent.preOjt, [index]: checked };
-  currentStudent.preOjt = preOjt;
+  const currentVal = localPreOjt[index] !== undefined ? localPreOjt[index] : (currentStudent.preOjt?.[index] === true);
+  localPreOjt[index] = !currentVal;
+  renderStudentChecklist(currentStudent);
+}
 
-  await api("POST", {
+function togglePostOjt(index) {
+  if (!currentStudent) return;
+  const currentVal = localPostOjt[index] !== undefined ? localPostOjt[index] : (currentStudent.postOjt?.[index] === true);
+  localPostOjt[index] = !currentVal;
+  renderStudentChecklist(currentStudent);
+}
+
+function hasLocalChanges(local, server) {
+  for (const key in local) {
+    if (local[key] !== (server?.[key] === true)) return true;
+  }
+  return false;
+}
+
+// ─── Save Requirements ───────────────────────────────────────
+async function savePreOjt() {
+  if (!currentStudent) return;
+  const s = currentStudent;
+
+  // Merge local into server state
+  const mergedPre = { ...s.preOjt };
+  for (const key in localPreOjt) {
+    mergedPre[key] = localPreOjt[key];
+  }
+
+  const { ok, data } = await api("POST", {
     action: "register",
-    srcode: currentStudent.srcode,
-    name: currentStudent.name,
-    section: currentStudent.section,
-    semester: currentStudent.semester,
-    course: currentStudent.course,
-    preOjt,
+    srcode: s.srcode,
+    name: s.name,
+    section: s.section,
+    semester: s.semester,
+    course: s.course,
+    company: s.company || "",
+    preOjt: mergedPre,
   });
+  if (!ok) { showMsg(data.error || "Save failed", "error"); return; }
+
+  // Update server state and clear local
+  currentStudent.preOjt = mergedPre;
+  localPreOjt = {};
+  showMsg("✅ Pre-OJT requirements saved!", "success");
+  renderStudentChecklist(currentStudent);
 }
 
-// ─── Student: Update Post-OJT ───────────────────────────────
-async function updatePostOjt(index, checked) {
+async function savePostOjt() {
   if (!currentStudent) return;
-  const postOjt = { ...currentStudent.postOjt, [index]: checked };
-  currentStudent.postOjt = postOjt;
+  const s = currentStudent;
 
-  await api("POST", {
+  const mergedPost = { ...s.postOjt };
+  for (const key in localPostOjt) {
+    mergedPost[key] = localPostOjt[key];
+  }
+
+  const { ok, data } = await api("POST", {
     action: "update-post",
-    srcode: currentStudent.srcode,
-    postOjt,
+    srcode: s.srcode,
+    postOjt: mergedPost,
   });
+  if (!ok) { showMsg(data.error || "Save failed", "error"); return; }
+
+  currentStudent.postOjt = mergedPost;
+  localPostOjt = {};
+  showMsg("✅ Post-OJT requirements saved!", "success");
+  renderStudentChecklist(currentStudent);
 }
 
 // ─── Coordinator: Login ─────────────────────────────────────
@@ -694,7 +826,7 @@ function renderAllTable(students, stats) {
 
   let html = `<table>
     <thead><tr>
-      <th>SR-Code</th><th>Name</th><th>Section</th><th>Semester</th><th>Course</th>
+      <th>SR-Code</th><th>Name</th><th>Section</th><th>Semester</th><th>Course</th><th>Company</th>
       <th>Pre-OJT</th><th>Post-OJT</th><th>Status</th><th>Action</th>
     </tr></thead><tbody>`;
 
@@ -715,6 +847,7 @@ function renderAllTable(students, stats) {
       <td>${s.section}</td>
       <td>${s.semester}</td>
       <td>${s.course}</td>
+      <td>${s.company || '<span style="color:#64748b;">—</span>'}</td>
       <td>${submittedPre}/${stats.preRequirements.length}<br><small style="color:#94a3b8;">${preCount} verified</small></td>
       <td>${submittedPost}/${stats.postRequirements.length}<br><small style="color:#94a3b8;">${postCount} verified</small></td>
       <td>${statusHtml}</td>
@@ -741,7 +874,7 @@ function renderPendingTable(students, stats) {
   }
 
   let html = `<table><thead><tr>
-    <th>SR-Code</th><th>Name</th><th>Section</th><th>Pending Items</th><th>Action</th>
+    <th>SR-Code</th><th>Name</th><th>Section</th><th>Company</th><th>Pending Items</th><th>Action</th>
   </tr></thead><tbody>`;
 
   pending.forEach(s => {
@@ -751,6 +884,7 @@ function renderPendingTable(students, stats) {
 
     html += `<tr>
       <td>${s.srcode}</td><td>${s.name}</td><td>${s.section}</td>
+      <td>${s.company || '<span style="color:#64748b;">—</span>'}</td>
       <td><small>${pendingItems.slice(0, 3).join("<br>")}${pendingItems.length > 3 ? `<br>...and ${pendingItems.length - 3} more` : ""}</small></td>
       <td><button class="btn btn-sm btn-primary" onclick="openVerifyModal('${s.srcode}')">Verify</button></td>
     </tr>`;
@@ -773,7 +907,7 @@ function renderCompleteTable(students, stats) {
   }
 
   let html = `<table><thead><tr>
-    <th>SR-Code</th><th>Name</th><th>Section</th><th>Course</th><th>Completion Date</th>
+    <th>SR-Code</th><th>Name</th><th>Section</th><th>Course</th><th>Company</th><th>Completion Date</th>
   </tr></thead><tbody>`;
 
   complete.forEach(s => {
@@ -783,6 +917,7 @@ function renderCompleteTable(students, stats) {
 
     html += `<tr>
       <td>${s.srcode}</td><td>${s.name}</td><td>${s.section}</td><td>${s.course}</td>
+      <td>${s.company || '<span style="color:#64748b;">—</span>'}</td>
       <td>${lastDate}</td>
     </tr>`;
   });

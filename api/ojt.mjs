@@ -235,6 +235,7 @@ const HEADERS = [
   "Section",
   "Semester",
   "Course",
+  "Company",
   "PreOJT",       // JSON: {"0":true, "1":false, ...}
   "PostOJT",      // JSON: {"0":false, "1":false, ...}
   "VerifiedPre",  // JSON: {"0":"2026-06-22", ...}
@@ -271,10 +272,11 @@ function rowToStudent(row) {
     section: row[3] || "",
     semester: row[4] || "",
     course: row[5] || "",
-    preOjt: safeParse(row[6]),
-    postOjt: safeParse(row[7]),
-    verifiedPre: safeParse(row[8]),
-    verifiedPost: safeParse(row[9]),
+    company: row[6] || "",
+    preOjt: safeParse(row[7]),
+    postOjt: safeParse(row[8]),
+    verifiedPre: safeParse(row[9]),
+    verifiedPost: safeParse(row[10]),
   };
 }
 
@@ -286,33 +288,40 @@ function safeParse(str) {
 // ─── Handlers ──────────────────────────────────────────────
 
 async function handleRegister(body) {
-  const { srcode, name, section, semester, course, preOjt } = body;
+  const { srcode, name, section, semester, course, company, preOjt, postOjt } = body;
 
   if (!srcode || !name || !section || !semester || !course) {
     return { status: 400, json: { error: "Missing required fields: srcode, name, section, semester, course" } };
   }
 
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const existing = rows.findIndex((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
 
   const preOjtJson = JSON.stringify(preOjt || {});
-  const postOjtJson = "{}";
   const verifiedPreJson = "{}";
   const verifiedPostJson = "{}";
   const now = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
   if (existing > 0) {
     const student = rowToStudent(rows[existing]);
-    const mergedPre = { ...student.preOjt, ...(preOjt || {}) };
 
-    await updateValues(`${MASTER_SHEET}!A${existing + 1}:J${existing + 1}`, [
-      [rows[existing][0], srcode, name, section, semester, course, JSON.stringify(mergedPre), postOjtJson, verifiedPreJson, verifiedPostJson]
+    // Merge checklists (preserve existing if not sending new ones)
+    const mergedPre = { ...student.preOjt, ...(preOjt || {}) };
+    const mergedPost = { ...student.postOjt, ...(postOjt || {}) };
+    // Update company (preserve existing if not sending new one)
+    const mergedCompany = company ?? student.company;
+
+    await updateValues(`${MASTER_SHEET}!A${existing + 1}:K${existing + 1}`, [
+      [rows[existing][0], srcode, name, section, semester, course, mergedCompany,
+       JSON.stringify(mergedPre), JSON.stringify(mergedPost),
+       JSON.stringify(student.verifiedPre), JSON.stringify(student.verifiedPost)]
     ]);
     return { status: 200, json: { ok: true, message: "Updated existing entry" } };
   }
 
-  await appendValues(`${MASTER_SHEET}!A:J`, [
-    [now, srcode, name, section, semester, course, preOjtJson, postOjtJson, verifiedPreJson, verifiedPostJson]
+  // New registration
+  await appendValues(`${MASTER_SHEET}!A:K`, [
+    [now, srcode, name, section, semester, course, company || "", preOjtJson, "{}", verifiedPreJson, verifiedPostJson]
   ]);
   return { status: 200, json: { ok: true, message: "Registered successfully" } };
 }
@@ -323,7 +332,7 @@ async function handleUpdatePost(body) {
     return { status: 400, json: { error: "Missing srcode or postOjt" } };
   }
 
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const idx = rows.findIndex((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
   if (idx <= 0) return { status: 404, json: { error: "Student not found" } };
 
@@ -340,7 +349,7 @@ async function handleVerify(body) {
     return { status: 400, json: { error: "Missing srcode, type, or index" } };
   }
 
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const idx = rows.findIndex((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
   if (idx <= 0) return { status: 404, json: { error: "Student not found" } };
 
@@ -362,19 +371,19 @@ async function handleDelete(body) {
   const { srcode } = body;
   if (!srcode) return { status: 400, json: { error: "Missing srcode" } };
 
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const idx = rows.findIndex((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
   if (idx <= 0) return { status: 404, json: { error: "Student not found" } };
 
   const range = `${MASTER_SHEET}!A${idx + 1}:J${idx + 1}`;
   await sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`, {
-    values: [["DELETED", srcode, "", "", "", "", "", "", "", ""]]
+    values: [["DELETED", srcode, "", "", "", "", "", "", "", "", ""]]
   });
   return { status: 200, json: { ok: true, message: "Deleted" } };
 }
 
 async function handleGetAll() {
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const students = rows.slice(1).map(rowToStudent).filter(Boolean);
   
   const total = students.length;
@@ -403,7 +412,7 @@ async function handleGet(query) {
   const { srcode } = query;
   if (!srcode) return { status: 400, json: { error: "Missing srcode" } };
 
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const row = rows.find((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
   if (!row) return { status: 404, json: { error: "Student not found" } };
 
@@ -411,10 +420,10 @@ async function handleGet(query) {
 }
 
 async function handleExport() {
-  const rows = await getValues(`${MASTER_SHEET}!A:J`);
+  const rows = await getValues(`${MASTER_SHEET}!A:K`);
   const students = rows.slice(1).map(rowToStudent).filter(Boolean);
 
-  const csvRows = [["SRCode", "Name", "Section", "Semester", "Course", "Status", "Missing Pre-OJT", "Missing Post-OJT", "Date Registered"]];
+  const csvRows = [["SRCode", "Name", "Section", "Semester", "Course", "Company", "Status", "Missing Pre-OJT", "Missing Post-OJT", "Date Registered"]];
 
   students.forEach(s => {
     const preVerified = Object.keys(s.verifiedPre).length;
@@ -424,7 +433,7 @@ async function handleExport() {
     const status = preVerified >= PRE_OJT.length && postVerified >= POST_OJT.length ? "COMPLETE" : "INCOMPLETE";
 
     csvRows.push([
-      s.srcode, s.name, s.section, s.semester, s.course,
+      s.srcode, s.name, s.section, s.semester, s.course, s.company || "",
       status,
       missingPre.join("; "),
       missingPost.join("; "),
