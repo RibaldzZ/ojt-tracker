@@ -570,7 +570,7 @@ async function lookupStudent() {
     localPostOjt = {};
     renderStudentChecklist(data.student);
     fillProfileUpdate(data.student);
-    $("lookup-result").innerHTML = `<div class="msg msg-success">Found: <strong>${data.student.name}</strong> (${data.student.srcode})</div>`;
+    showMsg(`✅ Found: ${data.student.name} (${data.student.srcode})`, "success");
   } catch (e) {
     console.error("lookupStudent error:", e);
     showMsg("Lookup failed: " + e.message, "error");
@@ -818,6 +818,7 @@ function loginAdmin() {
   adminKey = key;
   $("admin-login-card").classList.add("hidden");
   $("admin-dashboard").classList.remove("hidden");
+  showMsg("🔓 Dashboard unlocked! Welcome, Coordinator.", "success");
   refreshDashboard();
 }
 

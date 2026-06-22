@@ -561,8 +561,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("OJT API Error:", error);
+    console.error("STACK:", error.stack);
     return res.status(500).json({
       error: error.message,
+      stack: (error.stack || "").split("\n").slice(0,4).join(" | "),
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
     });
   }
