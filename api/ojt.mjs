@@ -45,6 +45,39 @@ const POST_OJT = [
 
 // ─── Auth helpers ────────────────────────────────────────────
 
+function buildCredentials() {
+  // Option 1: Base64-encoded full service account JSON
+  if (CREDENTIALS_B64) {
+    try {
+      return JSON.parse(Buffer.from(CREDENTIALS_B64, "base64").toString());
+    } catch (e) {
+      console.error("Failed to parse GOOGLE_SHEETS_CREDENTIALS:", e.message);
+    }
+  }
+
+  // Option 2: Individual env vars (less prone to paste corruption)
+  if (process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL) {
+    return {
+      type: "service_account",
+      project_id: process.env.GCP_PROJECT_ID || "angular-glyph-498713-t5",
+      private_key_id: process.env.GCP_PRIVATE_KEY_ID || "",
+      private_key: process.env.GCP_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      client_email: process.env.GCP_CLIENT_EMAIL,
+      client_id: process.env.GCP_CLIENT_ID || "",
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: process.env.GCP_CLIENT_CERT_URL || "",
+      universe_domain: "googleapis.com",
+    };
+  }
+
+  throw new Error(
+    "No Google credentials found. Set GOOGLE_SHEETS_CREDENTIALS (base64) " +
+    "OR GCP_CLIENT_EMAIL + GCP_PRIVATE_KEY as env vars."
+  );
+}
+
 function isAdmin(req) {
   const key = req.headers["x-admin-key"] || "";
   return ADMIN_KEY && key === ADMIN_KEY;
@@ -76,9 +109,8 @@ let authClient = null;
 
 async function getAuth() {
   if (authClient) return authClient;
-  if (!CREDENTIALS_B64) throw new Error("GOOGLE_SHEETS_CREDENTIALS not configured");
 
-  const creds = JSON.parse(Buffer.from(CREDENTIALS_B64, "base64").toString());
+  const creds = buildCredentials();
   const auth = new GoogleAuth({
     credentials: creds,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
@@ -428,9 +460,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("OJT API Error:", error);
+    const hasB64 = !!CREDENTIALS_B64;
+    const hasVars = !!(process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL);
     return res.status(500).json({
       error: error.message,
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
+      diagnostics: {
+        hasBase64EnvVar: hasB64,
+        hasIndividualVars: hasVars,
+        b64Length: CREDENTIALS_B64 ? CREDENTIALS_B64.length : 0,
+      },
     });
   }
 }
