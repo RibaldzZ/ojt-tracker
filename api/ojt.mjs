@@ -58,17 +58,30 @@ function buildCredentials() {
   // Option 2: Individual env vars (less prone to paste corruption)
   if (process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL) {
     let pk = process.env.GCP_PRIVATE_KEY;
-    // Handle both actual newlines and escaped \n
-    if (pk.includes("\\n")) pk = pk.replace(/\\n/g, "\n");
-    // Handle Windows CRLF
+
+    // Log raw key info for debugging
+    console.log("Raw PK length:", pk.length);
+    console.log("Raw PK starts with:", pk.substring(0, 40));
+    console.log("Raw PK has BEGIN:", pk.includes("BEGIN PRIVATE KEY"));
+    console.log("Raw PK has END:", pk.includes("END PRIVATE KEY"));
+
+    // Strip any existing PEM wrappers first
+    pk = pk.replace(/-----BEGIN PRIVATE KEY-----/g, "");
+    pk = pk.replace(/-----END PRIVATE KEY-----/g, "");
+    pk = pk.trim();
+
+    // Handle both actual newlines and escaped \n, plus CRLF
+    pk = pk.replace(/\\n/g, "\n");
     pk = pk.replace(/\r\n/g, "\n");
-    // Ensure proper PEM header/footer
-    if (!pk.includes("-----BEGIN PRIVATE KEY-----")) {
-      pk = "-----BEGIN PRIVATE KEY-----\n" + pk;
-    }
-    if (!pk.includes("-----END PRIVATE KEY-----")) {
-      pk = pk + "\n-----END PRIVATE KEY-----";
-    }
+
+    // Now clean up: remove any whitespace-only lines
+    pk = pk.split("\n").filter(line => line.trim() !== "").join("\n");
+
+    // Wrap properly
+    pk = "-----BEGIN PRIVATE KEY-----\n" + pk + "\n-----END PRIVATE KEY-----";
+
+    console.log("Processed PK starts with:", pk.substring(0, 40));
+    console.log("Processed PK ends with:", pk.substring(pk.length - 30));
 
     return {
       type: "service_account",
@@ -124,8 +137,14 @@ async function getAuth() {
   if (authClient) return authClient;
 
   const creds = buildCredentials();
+
+  // Write creds to temp file and use keyFile (avoids private key parsing issues)
+  const fs = await import("fs");
+  const tmpPath = "/tmp/sa-creds-" + Date.now() + ".json";
+  fs.writeFileSync(tmpPath, JSON.stringify(creds, null, 2));
+
   const auth = new GoogleAuth({
-    credentials: creds,
+    keyFile: tmpPath,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   authClient = await auth.getClient();
@@ -475,21 +494,31 @@ export default async function handler(req, res) {
     console.error("OJT API Error:", error);
     const hasB64 = !!CREDENTIALS_B64;
     const hasVars = !!(process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL);
-    const pkSample = process.env.GCP_PRIVATE_KEY
-      ? process.env.GCP_PRIVATE_KEY.substring(0, 60) + "..."
-      : "N/A";
+
+    let processedPkInfo = "N/A";
+    try {
+      if (hasVars) {
+        const pk = buildCredentials().private_key;
+        processedPkInfo = {
+          startsWith: pk.substring(0, 35),
+          endsWith: pk.substring(pk.length - 30),
+          length: pk.length,
+          hasBegin: pk.startsWith("-----BEGIN PRIVATE KEY-----"),
+          hasEnd: pk.includes("-----END PRIVATE KEY-----"),
+          newlines: (pk.match(/\n/g) || []).length,
+        };
+      }
+    } catch (e) {
+      processedPkInfo = "Build failed: " + e.message;
+    }
+
     return res.status(500).json({
       error: error.message,
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
       diagnostics: {
         hasBase64EnvVar: hasB64,
         hasIndividualVars: hasVars,
-        b64Length: CREDENTIALS_B64 ? CREDENTIALS_B64.length : 0,
-        privateKeyPreview: pkSample,
-        privateKeyIncludesBegin: process.env.GCP_PRIVATE_KEY
-          ? process.env.GCP_PRIVATE_KEY.includes("BEGIN PRIVATE KEY") : false,
-        privateKeyIncludesEnd: process.env.GCP_PRIVATE_KEY
-          ? process.env.GCP_PRIVATE_KEY.includes("END PRIVATE KEY") : false,
+        processedPrivateKey: processedPkInfo,
       },
     });
   }
