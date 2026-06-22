@@ -411,14 +411,9 @@
   <div id="coordinator-mode" class="hidden">
     <!-- Admin Login -->
     <div class="card" id="admin-login-card">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Admin Key</label>
-          <input type="password" id="admin-key" placeholder="Enter your admin key" onkeydown="if(event.key==='Enter')loginAdmin()">
-        </div>
-        <div style="display:flex;align-items:flex-end;">
-          <button class="btn btn-primary" onclick="loginAdmin()">Unlock Dashboard</button>
-        </div>
+      <div class="lookup-area">
+        <input type="password" id="admin-key" placeholder="Enter your admin key" onkeydown="if(event.key==='Enter')loginAdmin()">
+        <button class="btn btn-primary" onclick="loginAdmin()" style="white-space:nowrap;">Unlock Dashboard</button>
       </div>
     </div>
 
@@ -645,8 +640,9 @@ async function updateProfile() {
 
 // ─── Student: Render Checklist ─────────────────────────────
 function renderStudentChecklist(student) {
-  currentStudent = student;
   $("student-checklist").classList.remove("hidden");
+  if (!student) { currentStudent = null; $("student-checklist").classList.add("hidden"); return; }
+  currentStudent = student;
 
   const preVerCount = Object.keys(student.verifiedPre || {}).length;
   const allPreDone = preVerCount >= PRE_OJT.length;
