@@ -221,7 +221,7 @@ async function appendValues(range, values) {
 
 async function updateValues(range, values) {
   return sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=RAW`, {
-    values: [values],
+    values: values,
   });
 }
 
