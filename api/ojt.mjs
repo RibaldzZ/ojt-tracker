@@ -462,8 +462,30 @@ export default async function handler(req, res) {
     }
 
     const query = req.query || {};
-    const body = req.method === "POST" ? (req.body || {}) : {};
+
+    // Parse body — Vercel may pass it as a string or pre-parsed object
+    let body = {};
+    if (req.method === "POST") {
+      if (typeof req.body === "string") {
+        try { body = JSON.parse(req.body); } catch (e) { body = {}; }
+      } else if (req.body && typeof req.body === "object") {
+        body = req.body;
+      }
+    }
+
     const action = body.action || query.action || "";
+
+    // Debug: check env vars (no auth needed)
+    if (action === "debug") {
+      return res.status(200).json({
+        SHEET_ID: SHEET_ID ? "SET (" + SHEET_ID.substring(0, 10) + "..." : "NOT SET",
+        CREDENTIALS_B64: CREDENTIALS_B64 ? "SET (" + CREDENTIALS_B64.length + " chars)" : "NOT SET",
+        ADMIN_KEY: ADMIN_KEY ? "SET (" + ADMIN_KEY.length + " chars)" : "NOT SET",
+        GCP_PRIVATE_KEY: process.env.GCP_PRIVATE_KEY ? "SET (" + process.env.GCP_PRIVATE_KEY.length + " chars)" : "NOT SET",
+        GCP_CLIENT_EMAIL: process.env.GCP_CLIENT_EMAIL || "NOT SET",
+        node: process.version,
+      });
+    }
 
     if (req.method === "GET") {
       if (action === "export") {
