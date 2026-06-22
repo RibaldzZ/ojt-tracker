@@ -496,19 +496,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Echo: show what the server received
-    if (action === "echo") {
-      return res.status(200).json({
-        method: req.method,
-        body_type: typeof req.body,
-        body_raw: req.body,
-        query: req.query,
-        headers: {
-          content_type: req.headers["content-type"],
-          origin: req.headers.origin,
-        },
-      });
-    }
 
     if (req.method === "GET") {
       if (action === "export") {
