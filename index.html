@@ -669,7 +669,7 @@ function renderStudentChecklist(student) {
   });
 
   // Show save status indicator
-  $("pre-save-status").textContent = hasLocalChanges(localPreOjt, student.preOjt) ? "⚠️ Unsaved changes" : "";
+  $("pre-save-status").textContent = hasLocalChanges(localPreOjt, student?.preOjt || {}) ? "⚠️ Unsaved changes" : "";
 
   // Post-OJT
   const postSection = $("post-section");
@@ -701,7 +701,7 @@ function renderStudentChecklist(student) {
     postList.appendChild(li);
   });
 
-  $("post-save-status").textContent = hasLocalChanges(localPostOjt, student.postOjt) ? "⚠️ Unsaved changes" : "";
+  $("post-save-status").textContent = hasLocalChanges(localPostOjt, student?.postOjt || {}) ? "⚠️ Unsaved changes" : "";
 }
 
 // ─── Local toggle helpers ────────────────────────────────────
@@ -732,7 +732,7 @@ async function savePreOjt() {
   const s = currentStudent;
 
   // Merge local into server state
-  const mergedPre = { ...s.preOjt };
+  const mergedPre = { ...(s?.preOjt || {}) };
   for (const key in localPreOjt) {
     mergedPre[key] = localPreOjt[key];
   }
@@ -760,7 +760,7 @@ async function savePostOjt() {
   if (!currentStudent) return;
   const s = currentStudent;
 
-  const mergedPost = { ...s.postOjt };
+  const mergedPost = { ...(s?.postOjt || {}) };
   for (const key in localPostOjt) {
     mergedPost[key] = localPostOjt[key];
   }

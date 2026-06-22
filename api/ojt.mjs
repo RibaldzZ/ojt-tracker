@@ -391,8 +391,8 @@ async function handleGetAll() {
   
   const total = students.length;
   const completed = students.filter(s => {
-    const preCount = Object.keys(s.verifiedPre).length;
-    const postCount = Object.keys(s.verifiedPost).length;
+    const preCount = Object.keys(s.verifiedPre || {}).length;
+    const postCount = Object.keys(s.verifiedPost || {}).length;
     return preCount >= PRE_OJT.length && postCount >= POST_OJT.length;
   }).length;
 
@@ -429,8 +429,8 @@ async function handleExport() {
   const csvRows = [["SRCode", "Name", "Section", "Semester", "Course", "Company", "Status", "Missing Pre-OJT", "Missing Post-OJT", "Date Registered"]];
 
   students.forEach(s => {
-    const preVerified = Object.keys(s.verifiedPre).length;
-    const postVerified = Object.keys(s.verifiedPost).length;
+    const preVerified = Object.keys(s.verifiedPre || {}).length;
+    const postVerified = Object.keys(s.verifiedPost || {}).length;
     const missingPre = PRE_OJT.filter((_, i) => !s.verifiedPre?.[i]);
     const missingPost = POST_OJT.filter((_, i) => !s.verifiedPost?.[i]);
     const status = preVerified >= PRE_OJT.length && postVerified >= POST_OJT.length ? "COMPLETE" : "INCOMPLETE";
