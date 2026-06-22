@@ -1,6 +1,6 @@
 # OJT Requirements Tracker — Student Guide (Video Script)
 
-**Channel**: The Chalkboard Counsellor
+**Channel**: RibaldzZ
 **Target Audience**: OJT Students
 **Narrator**: AI Voice (US English)
 **Duration**: ~10 minutes

@@ -38,7 +38,7 @@ WHAT YOU CAN DO:
 
 Works on any device — phone, laptop, tablet, desktop.
 
-#OJT #OnTheJobTraining #StudentGuide #CollegeTips #ITStudents #TheChalkboardCounsellor
+#OJT #OnTheJobTraining #StudentGuide #CollegeTips #ITStudents #RibaldzZ
 ```
 
 ---
@@ -49,7 +49,7 @@ Works on any device — phone, laptop, tablet, desktop.
 ojt requirements tracker, ojt tracking system, ojt student guide, 
 on the job training requirements, pre ojt requirements, post ojt requirements, 
 student tutorial, college tips, ojt philippines, internship tracker, 
-the chalkboard counsellor, ojt made easy, no login required, 
+ribaldzz channel, ojt made easy, no login required, 
 student id tracker, ojt checklist, internship requirements
 ```
 

@@ -1,7 +1,7 @@
 # OJT Requirements Tracker — Free Tool for Students
 
 **Published**: June 23, 2026
-**Author**: Professor [Name]
+**Author**: Professor RibaldzZ
 **Tags**: OJT, Students, Free Tool, Requirements Tracker
 
 ---
