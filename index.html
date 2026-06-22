@@ -597,7 +597,7 @@ async function registerStudent() {
     }
 
     const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course, company });
-    if (!ok) { showMsg(data.error || "Registration failed", "error"); return; }
+    if (!ok) { showMsg((data.stack ? data.stack : data.error) || "Registration failed", "error"); return; }
 
     // Build student object safely
     const newStudent = {};
