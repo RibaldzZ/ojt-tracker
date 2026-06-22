@@ -477,13 +477,36 @@ export default async function handler(req, res) {
 
     // Debug: check env vars (no auth needed)
     if (action === "debug") {
+      let credsTest = "not tested";
+      if (CREDENTIALS_B64) {
+        try {
+          const decoded = Buffer.from(CREDENTIALS_B64, "base64").toString();
+          const parsed = JSON.parse(decoded);
+          credsTest = "OK: client_email=" + (parsed.client_email || "missing");
+        } catch (e) {
+          credsTest = "FAILED: " + e.message;
+        }
+      }
       return res.status(200).json({
         SHEET_ID: SHEET_ID ? "SET (" + SHEET_ID.substring(0, 10) + "..." : "NOT SET",
         CREDENTIALS_B64: CREDENTIALS_B64 ? "SET (" + CREDENTIALS_B64.length + " chars)" : "NOT SET",
+        credentials_test: credsTest,
         ADMIN_KEY: ADMIN_KEY ? "SET (" + ADMIN_KEY.length + " chars)" : "NOT SET",
-        GCP_PRIVATE_KEY: process.env.GCP_PRIVATE_KEY ? "SET (" + process.env.GCP_PRIVATE_KEY.length + " chars)" : "NOT SET",
-        GCP_CLIENT_EMAIL: process.env.GCP_CLIENT_EMAIL || "NOT SET",
         node: process.version,
+      });
+    }
+
+    // Echo: show what the server received
+    if (action === "echo") {
+      return res.status(200).json({
+        method: req.method,
+        body_type: typeof req.body,
+        body_raw: req.body,
+        query: req.query,
+        headers: {
+          content_type: req.headers["content-type"],
+          origin: req.headers.origin,
+        },
       });
     }
 
