@@ -24,27 +24,6 @@
   header h1 span { color: #60a5fa; }
   header p { color: #94a3b8; margin-top: 8px; font-size: 0.95rem; }
 
-  /* Auth / Mode Switch */
-  .mode-switch {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin: 20px 0;
-  }
-  .mode-btn {
-    padding: 10px 28px;
-    border: 2px solid #334155;
-    border-radius: 10px;
-    background: #1e293b;
-    color: #94a3b8;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .mode-btn:hover { border-color: #60a5fa; color: #e2e8f0; }
-  .mode-btn.active { border-color: #60a5fa; background: #1e3a5f; color: #60a5fa; }
-
   /* Cards */
   .card {
     background: #1e293b;
@@ -277,15 +256,6 @@
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 
-  /* Export */
-  .export-area { margin-top: 16px; }
-  textarea.export-box {
-    width: 100%; height: 200px;
-    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
-    color: #e2e8f0; padding: 12px; font-size: 0.78rem; font-family: monospace;
-    resize: vertical;
-  }
-
   /* Responsive */
   @media (max-width: 640px) {
     .form-row, .form-row-3 { grid-template-columns: 1fr; }
@@ -304,10 +274,9 @@
   <!-- Messages -->
   <div id="msg" class="msg hidden"></div>
 
-  <!-- Mode Switch -->
-  <div class="mode-switch">
-    <button class="mode-btn active" data-mode="student" onclick="switchMode('student')">🎓 I'm a Student</button>
-    <button class="mode-btn" data-mode="coordinator" onclick="switchMode('coordinator')">📋 I'm a Coordinator</button>
+  <!-- Page title indicator -->
+  <div style="text-align:center;margin:20px 0 10px;">
+    <span style="background:#1e3a5f;color:#60a5fa;padding:4px 16px;border-radius:20px;font-size:0.85rem;font-weight:600;">🎓 Student Portal</span>
   </div>
 
   <!-- ==================== STUDENT MODE ==================== -->
@@ -483,16 +452,17 @@
       <div class="tab-content" id="tab-export">
         <div class="card">
           <h2>Export Data</h2>
-          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">CSV format ready for Excel/Google Sheets.</p>
-          <button class="btn btn-primary" onclick="exportCSV()">📥 Generate CSV</button>
-          <div class="export-area hidden" id="export-area">
-            <textarea class="export-box" id="export-box" readonly></textarea>
-            <button class="btn btn-secondary" style="margin-top:8px;" onclick="copyExport()">📋 Copy to Clipboard</button>
-          </div>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Download a CSV file for Excel/Google Sheets.</p>
+          <button class="btn btn-primary" onclick="exportCSV()">📥 Download CSV</button>
+          <span id="export-status" style="color:#94a3b8;font-size:0.85rem;margin-left:10px;"></span>
         </div>
       </div>
     </div>
   </div>
+  <!-- Footer with Coordinator Access -->
+  <footer style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #1e293b;">
+    <button id="coord-login-btn" class="btn btn-secondary btn-sm" onclick="toggleCoordinatorView()">🔑 Coordinator Access</button>
+  </footer>
 </div>
 
 <!-- Verification Modal -->
@@ -547,13 +517,15 @@ function showMsg(msg, type = "info") {
 
 function $(id) { return document.getElementById(id); }
 
-// ─── Mode Switch ────────────────────────────────────────────
-function switchMode(mode) {
-  document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
-  document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add("active");
-  document.getElementById("student-mode").classList.toggle("hidden", mode !== "student");
-  document.getElementById("coordinator-mode").classList.toggle("hidden", mode !== "coordinator");
-  if (mode === "coordinator" && adminKey) refreshDashboard();
+// ─── Coordinator Toggle ───────────────────────────────────
+let coordinatorViewActive = false;
+
+function toggleCoordinatorView() {
+  coordinatorViewActive = !coordinatorViewActive;
+  document.getElementById("student-mode").classList.toggle("hidden", coordinatorViewActive);
+  document.getElementById("coordinator-mode").classList.toggle("hidden", !coordinatorViewActive);
+  document.getElementById("coord-login-btn").textContent = coordinatorViewActive ? "← Back to Student View" : "🔑 Coordinator Access";
+  if (coordinatorViewActive && adminKey) refreshDashboard();
 }
 
 // ─── Toggle Sections ────────────────────────────────────────
@@ -616,6 +588,14 @@ async function registerStudent() {
   localPostOjt = {};
   renderStudentChecklist(currentStudent);
   fillProfileUpdate(currentStudent);
+
+  // Clear registration form for next student
+  $("reg-srcode").value = "";
+  $("reg-name").value = "";
+  $("reg-section").value = "";
+  $("reg-semester").value = "";
+  $("reg-course").value = "";
+  $("reg-company").value = "";
 }
 
 // ─── Profile Update ─────────────────────────────────────────
@@ -1002,17 +982,22 @@ function switchTab(tab) {
 
 // ─── Export ──────────────────────────────────────────────────
 async function exportCSV() {
+  const statusEl = $("export-status");
+  statusEl.textContent = "⏳ Generating...";
   const { ok, data } = await api("GET", null, "action=export");
-  if (!ok) { showMsg("Export failed", "error"); return; }
-  $("export-box").value = data.csv;
-  $("export-area").classList.remove("hidden");
-}
+  if (!ok) { statusEl.textContent = ""; showMsg("Export failed", "error"); return; }
 
-function copyExport() {
-  const box = $("export-box");
-  box.select();
-  document.execCommand("copy");
-  showMsg("📋 CSV copied to clipboard!", "success");
+  const blob = new Blob([data.csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ojt-tracker-export-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  statusEl.textContent = "";
+  showMsg("✅ CSV file downloaded!", "success");
 }
 
 // ─── GET helper wrapper ──────────────────────────────────────
