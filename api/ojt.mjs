@@ -57,11 +57,24 @@ function buildCredentials() {
 
   // Option 2: Individual env vars (less prone to paste corruption)
   if (process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL) {
+    let pk = process.env.GCP_PRIVATE_KEY;
+    // Handle both actual newlines and escaped \n
+    if (pk.includes("\\n")) pk = pk.replace(/\\n/g, "\n");
+    // Handle Windows CRLF
+    pk = pk.replace(/\r\n/g, "\n");
+    // Ensure proper PEM header/footer
+    if (!pk.includes("-----BEGIN PRIVATE KEY-----")) {
+      pk = "-----BEGIN PRIVATE KEY-----\n" + pk;
+    }
+    if (!pk.includes("-----END PRIVATE KEY-----")) {
+      pk = pk + "\n-----END PRIVATE KEY-----";
+    }
+
     return {
       type: "service_account",
       project_id: process.env.GCP_PROJECT_ID || "angular-glyph-498713-t5",
       private_key_id: process.env.GCP_PRIVATE_KEY_ID || "",
-      private_key: process.env.GCP_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      private_key: pk,
       client_email: process.env.GCP_CLIENT_EMAIL,
       client_id: process.env.GCP_CLIENT_ID || "",
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
@@ -462,6 +475,9 @@ export default async function handler(req, res) {
     console.error("OJT API Error:", error);
     const hasB64 = !!CREDENTIALS_B64;
     const hasVars = !!(process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL);
+    const pkSample = process.env.GCP_PRIVATE_KEY
+      ? process.env.GCP_PRIVATE_KEY.substring(0, 60) + "..."
+      : "N/A";
     return res.status(500).json({
       error: error.message,
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
@@ -469,6 +485,11 @@ export default async function handler(req, res) {
         hasBase64EnvVar: hasB64,
         hasIndividualVars: hasVars,
         b64Length: CREDENTIALS_B64 ? CREDENTIALS_B64.length : 0,
+        privateKeyPreview: pkSample,
+        privateKeyIncludesBegin: process.env.GCP_PRIVATE_KEY
+          ? process.env.GCP_PRIVATE_KEY.includes("BEGIN PRIVATE KEY") : false,
+        privateKeyIncludesEnd: process.env.GCP_PRIVATE_KEY
+          ? process.env.GCP_PRIVATE_KEY.includes("END PRIVATE KEY") : false,
       },
     });
   }
