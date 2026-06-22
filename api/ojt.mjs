@@ -520,9 +520,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("OJT API Error:", error);
+    // Include debug info about the private key
+    const pk = process.env.GCP_PRIVATE_KEY || "";
     return res.status(500).json({
       error: error.message,
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
+      pk_debug: {
+        length: pk.length,
+        start40: pk.substring(0, 40),
+        end40: pk.substring(pk.length - 40),
+        hasBegin: pk.includes("-----BEGIN"),
+        hasEnd: pk.includes("-----END"),
+        newlines: (pk.match(/\n/g) || []).length,
+        hasEscapedN: pk.includes("\\n"),
+        hasCR: pk.includes("\r"),
+      },
     });
   }
 }
