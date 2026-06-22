@@ -539,7 +539,6 @@ function toggleCoordinatorView() {
   coordinatorViewActive = !coordinatorViewActive;
   document.getElementById("student-mode").classList.toggle("hidden", coordinatorViewActive);
   document.getElementById("coordinator-mode").classList.toggle("hidden", !coordinatorViewActive);
-  document.getElementById("coord-login-btn").textContent = coordinatorViewActive ? "← Back to Student View" : "🔑 Coordinator Access";
   if (coordinatorViewActive && adminKey) refreshDashboard();
 }
 
