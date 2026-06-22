@@ -303,7 +303,21 @@ async function handleRegister(body) {
   const now = new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" });
 
   if (existing > 0) {
+    if (!rows[existing]) {
+      console.error("CRASH: rows[existing] is null/undefined at index", existing, "rows length:", rows.length);
+      return { status: 500, json: { error: "Internal: row data missing", stack: `existing=${existing} rows=${rows.length}` } };
+    }
     const student = rowToStudent(rows[existing]);
+    if (!student) {
+      console.error("CRASH: rowToStudent returned null for row", rows[existing]);
+      return { status: 500, json: { error: "Internal: rowToStudent failed", stack: JSON.stringify(rows[existing]) } };
+    }
+
+    // Verify student object is valid before accessing properties
+    if (typeof student !== "object" || student === null || student === undefined) {
+      console.error("CRASH: student is invalid", typeof student, student);
+      return { status: 500, json: { error: "student invalid", stack: `${typeof student} ${JSON.stringify(rows[existing])}` } };
+    }
 
     // Merge checklists (preserve existing if not sending new ones)
     const mergedPre = { ...student.preOjt, ...(preOjt || {}) };
