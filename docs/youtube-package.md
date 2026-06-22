@@ -1,33 +1,34 @@
 # OJT Requirements Tracker — YouTube Package
 
----
-
-## 🎬 Video Title (Pick One)
-
-**Primary**: "OJT Requirements Tracker — Full Student Guide (No Login Needed)"
-**Alt 1**: "Track Your OJT Requirements in Minutes — Student Tutorial"
-**Alt 2**: "OJT Made Easy: Complete Student Guide to the Requirements Tracker"
+**Published**: June 23, 2026
+**Video URL**: https://youtu.be/qokOlFJ3s7c
 
 ---
 
-## 📝 Description
+## 🎬 Video Title
+
+**Used**: "OJT Requirements Tracker — Complete Student Guide"
+
+---
+
+## 📝 Description (Live)
 
 ```
-In this video, I'll walk you through the OJT Requirements Tracker — a free web app 
-that helps you track all your Pre-OJT and Post-OJT requirements in one place. No 
-login, no app download, just your student ID.
+In this video, I walk you through the OJT Requirements Tracker — a free web app 
+that helps students track all their Pre-OJT and Post-OJT requirements in one place.
 
 🌐 Try it here: https://ojt-tracker-nine.vercel.app/
 
 ⏱️ TIMESTAMPS:
-0:00 — What You'll Learn
-0:40 — What Is the OJT Requirements Tracker?
-2:00 — Step 1: Registration (Enter Your SR-Code)
-4:00 — Step 2: Pre-OJT Checklist (8 Requirements)
-6:30 — Step 3: Post-OJT Checklist (Unlocks Automatically)
-8:00 — Step 4: Check Your Status Anytime
-9:30 — How Your Coordinator Uses This
-10:30 — Subscribe for More OJT Tips
+0:00 — What Is the OJT Requirements Tracker?
+1:15 — Step 1: Registration
+3:00 — Step 2: Your Profile & Checklist
+4:30 — Step 3: Pre-OJT Requirements
+6:15 — Step 4: Save Your Progress
+7:30 — Step 5: Post-OJT Unlocks
+9:00 — Step 6: Check Your Status Anytime
+10:15 — How Your Coordinator Uses This
+11:30 — Coordinator Dashboard Overview
 
 WHAT YOU CAN DO:
 ✅ Register using your SR-Code — no account needed
