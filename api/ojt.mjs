@@ -264,7 +264,7 @@ async function ensureSheet() {
 // ─── Data parsing ──────────────────────────────────────────
 
 function rowToStudent(row) {
-  if (!row || row.length < 6) return null;
+  if (!row) return { timestamp: "", srcode: "", name: "", section: "", semester: "", course: "", preOjt: {}, postOjt: {}, verifiedPre: {}, verifiedPost: {}, company: "" };
   return {
     timestamp: row[0] || "",
     srcode: row[1] || "",
