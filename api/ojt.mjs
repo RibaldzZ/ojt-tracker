@@ -375,8 +375,8 @@ async function handleDelete(body) {
   const idx = rows.findIndex((r, i) => i > 0 && r[1]?.toUpperCase() === srcode.toUpperCase());
   if (idx <= 0) return { status: 404, json: { error: "Student not found" } };
 
-  const range = `${MASTER_SHEET}!A${idx + 1}:J${idx + 1}`;
-  await sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`, {
+  const range = `${MASTER_SHEET}!A${idx + 1}:K${idx + 1}`;
+  await sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=RAW`, {
     values: [["DELETED", srcode, "", "", "", "", "", "", "", "", ""]]
   });
   return { status: 200, json: { ok: true, message: "Deleted" } };
