@@ -22,6 +22,9 @@ Write-Host "[1/4] Encoding credentials..."
 if (Test-Path $CREDS_FILE) {
     $GOOGLE_SHEETS_CREDENTIALS = [Convert]::ToBase64String([IO.File]::ReadAllBytes($CREDS_FILE))
     Write-Host "  DONE ($($GOOGLE_SHEETS_CREDENTIALS.Length) chars)"
+} elseif (Test-Path ".\GOOGLE_SHEETS_CREDENTIALS.txt") {
+    $GOOGLE_SHEETS_CREDENTIALS = Get-Content ".\GOOGLE_SHEETS_CREDENTIALS.txt" -Raw
+    Write-Host "  Loaded from file ($($GOOGLE_SHEETS_CREDENTIALS.Length) chars)"
 } else {
     Write-Host "  CREDS NOT FOUND. Paste base64 manually:"
     $GOOGLE_SHEETS_CREDENTIALS = Read-Host "> "
