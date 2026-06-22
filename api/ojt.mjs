@@ -2,27 +2,24 @@ import { createPrivateKey, createSign } from "crypto";
 
 // Minimal test: build credentials and create a signed JWT
 export default async function handler(req, res) {
+  let result = { ok: false, error: "unknown" };
+  
   try {
     const client_email = process.env.GCP_CLIENT_EMAIL || "test@test.com";
     let pk = process.env.GCP_PRIVATE_KEY || "";
-    let steps = {};
-
-    // Step 1: Check raw key
-    steps.rawLen = pk.length;
-    steps.rawHasBegin = pk.includes("-----BEGIN");
-    steps.rawNewlines = (pk.match(/\n/g) || []).length;
+    
+    result.step1 = "rawLen=" + pk.length + " begin=" + pk.includes("-----BEGIN");
 
     // Step 2: Wrap key with PEM headers
     pk = pk.replace(/-----BEGIN.*PRIVATE KEY-----/g, "").trim();
     pk = pk.replace(/-----END.*PRIVATE KEY-----/g, "").trim();
     pk = pk.split("\n").filter(l => l.trim()).join("\n");
     pk = "-----BEGIN PRIVATE KEY-----\n" + pk + "\n-----END PRIVATE KEY-----";
-    steps.wrappedLen = pk.length;
-    steps.wrappedStartsWith = pk.substring(0, 45);
+    result.step2 = "wrappedLen=" + pk.length + " starts=" + pk.substring(0, 45);
 
     // Step 3: createPrivateKey
     const keyObject = createPrivateKey(pk);
-    steps.createPrivateKey = "OK";
+    result.step3 = "OK";
 
     // Step 4: Sign
     const header = { alg: "RS256", typ: "JWT" };
@@ -40,7 +37,7 @@ export default async function handler(req, res) {
     sign.update(signInput);
     sign.end();
     const sig = sign.sign(keyObject, "base64");
-    steps.sign = "OK, len=" + sig.length;
+    result.step4 = "sigLen=" + sig.length;
 
     // Step 5: Exchange token
     const jwt = signInput + "." + sig.replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
@@ -50,13 +47,15 @@ export default async function handler(req, res) {
       body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
     });
     const tokenData = await tokenRes.json();
-    steps.tokenExchange = tokenRes.status + " " + (tokenData.access_token ? "OK" : JSON.stringify(tokenData));
+    result.step5 = tokenRes.status + " " + (tokenData.access_token ? "OK" : JSON.stringify(tokenData).substring(0,200));
 
-    res.status(200).json({ ok: true, steps });
+    result.ok = true;
   } catch (e) {
-    res.status(500).json({
-      error: e.message,
-      stack: e.stack?.substring(0, 500),
-    });
+    result.error = e.message || String(e);
+    result.stack = (e.stack || "").substring(0, 500);
   }
+  
+  // Always respond with JSON
+  res.setHeader("Content-Type", "application/json");
+  res.status(result.ok ? 200 : 500).end(JSON.stringify(result, null, 2));
 }
