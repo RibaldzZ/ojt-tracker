@@ -214,13 +214,13 @@ async function getValues(range) {
 }
 
 async function appendValues(range, values) {
-  return sheetsApi("POST", `/${SHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+  return sheetsApi("POST", `/${SHEET_ID}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     values: [values],
   });
 }
 
 async function updateValues(range, values) {
-  return sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`, {
+  return sheetsApi("PUT", `/${SHEET_ID}/values/${range}?valueInputOption=RAW`, {
     values: [values],
   });
 }
