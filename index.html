@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OJT Requirements Tracker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 30px 0 20px;
+  }
+  header h1 { font-size: 2rem; color: #f8fafc; letter-spacing: -0.5px; }
+  header h1 span { color: #60a5fa; }
+  header p { color: #94a3b8; margin-top: 8px; font-size: 0.95rem; }
+
+  /* Auth / Mode Switch */
+  .mode-switch {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin: 20px 0;
+  }
+  .mode-btn {
+    padding: 10px 28px;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn:hover { border-color: #60a5fa; color: #e2e8f0; }
+  .mode-btn.active { border-color: #60a5fa; background: #1e3a5f; color: #60a5fa; }
+
+  /* Cards */
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1.3rem; margin-bottom: 16px; color: #f1f5f9; }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: #60a5fa;
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: #334155; color: #e2e8f0; }
+  .btn-secondary:hover { background: #475569; }
+  .btn-success { background: #059669; color: #fff; }
+  .btn-success:hover { background: #047857; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    gap: 12px;
+  }
+  .checklist li.checked {
+    border-color: #059669;
+    background: rgba(5, 150, 105, 0.08);
+  }
+  .checklist li.verified {
+    border-color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+  }
+  .checklist .req-name { flex: 1; font-size: 0.9rem; }
+  .checklist .req-status { font-size: 0.8rem; color: #94a3b8; }
+  .checklist .verified-badge {
+    background: #2563eb;
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.73rem;
+    font-weight: 600;
+  }
+
+  /* Student Lookup */
+  .lookup-area {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .lookup-area input { flex: 1; }
+
+  /* Coordinator Table */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th {
+    background: #0f172a;
+    color: #94a3b8;
+    padding: 10px 8px;
+    text-align: left;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #334155;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #1e293b;
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(96, 165, 250, 0.04); }
+  .status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.73rem;
+    font-weight: 600;
+  }
+  .status-complete { background: rgba(5, 150, 105, 0.15); color: #34d399; }
+  .status-incomplete { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+  .status-pending { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; color: #60a5fa; }
+  .stat-card .label { font-size: 0.78rem; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 28px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin-bottom: 16px; }
+  .modal-close {
+    float: right;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  .modal-close:hover { color: #fff; }
+
+  /* Messages */
+  .msg {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+  .msg-success { background: rgba(5, 150, 105, 0.12); border: 1px solid #059669; color: #34d399; }
+  .msg-error { background: rgba(220, 38, 38, 0.12); border: 1px solid #dc2626; color: #f87171; }
+  .msg-info { background: rgba(37, 99, 235, 0.12); border: 1px solid #2563eb; color: #60a5fa; }
+  .msg.hidden { display: none; }
+
+  /* Section toggles */
+  .section-title {
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; padding: 8px 0;
+  }
+  .section-title:hover { color: #60a5fa; }
+  .section-title .arrow { transition: transform 0.2s; }
+  .section-title .arrow.open { transform: rotate(90deg); }
+
+  /* Loading */
+  .loading {
+    text-align: center; padding: 40px; color: #94a3b8;
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid #334155;
+    border-top-color: #60a5fa; border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab {
+    padding: 8px 18px;
+    border: 1px solid #334155;
+    border-radius: 8px 8px 0 0;
+    background: #0f172a;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: -1px;
+  }
+  .tab.active { background: #1e293b; border-color: #334155; border-bottom-color: #1e293b; color: #60a5fa; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Export */
+  .export-area { margin-top: 16px; }
+  textarea.export-box {
+    width: 100%; height: 200px;
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    color: #e2e8f0; padding: 12px; font-size: 0.78rem; font-family: monospace;
+    resize: vertical;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .form-row, .form-row-3 { grid-template-columns: 1fr; }
+    .lookup-area { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>OJT <span>Requirements</span> Tracker</h1>
+    <p>Student self-registration &bull; Coordinator verification &bull; Real-time dashboard</p>
+  </header>
+
+  <!-- Messages -->
+  <div id="msg" class="msg hidden"></div>
+
+  <!-- Mode Switch -->
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="student" onclick="switchMode('student')">🎓 I'm a Student</button>
+    <button class="mode-btn" data-mode="coordinator" onclick="switchMode('coordinator')">📋 I'm a Coordinator</button>
+  </div>
+
+  <!-- ==================== STUDENT MODE ==================== -->
+  <div id="student-mode">
+    <!-- Lookup existing -->
+    <div class="card">
+      <h2>Already registered? Check your status</h2>
+      <div class="lookup-area">
+        <input type="text" id="lookup-srcode" placeholder="Enter your SR-Code (e.g., SR-2024-0001)" onkeydown="if(event.key==='Enter')lookupStudent()">
+        <button class="btn btn-primary" onclick="lookupStudent()">Look Up</button>
+      </div>
+      <div id="lookup-result"></div>
+    </div>
+
+    <!-- Registration form -->
+    <div class="card">
+      <h2>Student Registration</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>SR-Code</label>
+          <input type="text" id="reg-srcode" placeholder="SR-2024-0001">
+        </div>
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="reg-name" placeholder="Dela Cruz, Juan M.">
+        </div>
+      </div>
+      <div class="form-row-3">
+        <div class="form-group">
+          <label>Section</label>
+          <input type="text" id="reg-section" placeholder="BSIT-3A">
+        </div>
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="reg-semester">
+            <option value="">Select...</option>
+            <option value="1st Sem 2025-2026">1st Sem 2025-2026</option>
+            <option value="2nd Sem 2025-2026">2nd Sem 2025-2026</option>
+            <option value="Summer 2026">Summer 2026</option>
+            <option value="1st Sem 2026-2027">1st Sem 2026-2027</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Course/Program</label>
+          <select id="reg-course">
+            <option value="">Select...</option>
+            <option value="BSIT">BSIT</option>
+            <option value="BSCS">BSCS</option>
+            <option value="BSIS">BSIS</option>
+            <option value="ACT">ACT</option>
+            <option value="COMTECH">COMTECH</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-success" onclick="registerStudent()">Register / Update</button>
+    </div>
+
+    <!-- Pre-OJT Requirements (shown after lookup/register) -->
+    <div id="student-checklist" class="hidden">
+      <div class="card">
+        <div class="section-title" onclick="toggleSection('pre-section')">
+          <h2>📄 Pre-OJT Requirements</h2>
+          <span class="arrow" id="arrow-pre-section">▶</span>
+        </div>
+        <div id="pre-section">
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Check off requirements you have submitted. Marks are saved even if incomplete.</p>
+          <ul class="checklist" id="pre-checklist"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" onclick="toggleSection('post-section')">
+          <h2>🏁 Post-OJT Requirements</h2>
+          <span class="arrow" id="arrow-post-section">▶</span>
+        </div>
+        <div id="post-section" class="hidden">
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Available after completing all Pre-OJT requirements.</p>
+          <ul class="checklist" id="post-checklist"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COORDINATOR MODE ==================== -->
+  <div id="coordinator-mode" class="hidden">
+    <!-- Admin Login -->
+    <div class="card" id="admin-login-card">
+      <h2>Coordinator Access</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Admin Key</label>
+          <input type="password" id="admin-key" placeholder="Enter your admin key" onkeydown="if(event.key==='Enter')loginAdmin()">
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-primary" onclick="loginAdmin()">Unlock Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard (hidden until login) -->
+    <div id="admin-dashboard" class="hidden">
+      <!-- Stats -->
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="all" onclick="switchTab('all')">All Students</button>
+        <button class="tab" data-tab="pending" onclick="switchTab('pending')">Pending Review</button>
+        <button class="tab" data-tab="complete" onclick="switchTab('complete')">Completed</button>
+        <button class="tab" data-tab="export" onclick="switchTab('export')">Export</button>
+      </div>
+
+      <!-- All / Pending / Complete views -->
+      <div class="tab-content active" id="tab-all">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h2>Student Masterlist</h2>
+            <button class="btn btn-sm btn-secondary" onclick="refreshDashboard()">🔄 Refresh</button>
+          </div>
+          <div class="table-wrap" id="all-students-table"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-pending">
+        <div class="card">
+          <h2>Pending Verification</h2>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Students who have submitted requirements waiting for coordinator sign-off.</p>
+          <div class="table-wrap" id="pending-table"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-complete">
+        <div class="card">
+          <h2>Completed</h2>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">Students who have completed ALL Pre-OJT and Post-OJT requirements.</p>
+          <div class="table-wrap" id="complete-table"></div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-export">
+        <div class="card">
+          <h2>Export Data</h2>
+          <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:12px;">CSV format ready for Excel/Google Sheets.</p>
+          <button class="btn btn-primary" onclick="exportCSV()">📥 Generate CSV</button>
+          <div class="export-area hidden" id="export-area">
+            <textarea class="export-box" id="export-box" readonly></textarea>
+            <button class="btn btn-secondary" style="margin-top:8px;" onclick="copyExport()">📋 Copy to Clipboard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verification Modal -->
+<div class="modal-overlay" id="verify-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 id="modal-title">Verify Requirement</h2>
+    <p id="modal-student" style="color:#94a3b8;margin-bottom:16px;"></p>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────
+const API_BASE = ""; // Same origin for production
+// For development, you can set: const API_BASE = "http://localhost:3000";
+
+const PRE_OJT = [
+  "Parent's Guardian Consent for Internship Training",
+  "Student Trainee's Personal History Statement",
+  "On the Job Trainee Acceptance Form",
+  "Internship Agreement",
+  "OJT Endorsement Letter",
+  "Registration Form",
+  "Medical",
+  "School ID",
+];
+
+const POST_OJT = [
+  "Student Trainee's Performance Appraisal Report",
+  "Training Supervisor's Feedback Form",
+  "Student Trainee's Feedback Form",
+  "Technical Narrative Report",
+  "Certificate of Completion",
+  "Post Individual Interview & Career Counselling for OJT",
+];
+
+// ─── State ──────────────────────────────────────────────────
+let adminKey = "";
+let currentStudent = null; // { srcode, name, ... }
+
+// ─── Helpers ──────────────────────────────────────────────────
+function showMsg(msg, type = "info") {
+  const el = document.getElementById("msg");
+  el.textContent = msg;
+  el.className = `msg msg-${type}`;
+  el.classList.remove("hidden");
+  setTimeout(() => el.classList.add("hidden"), 6000);
+}
+
+function $(id) { return document.getElementById(id); }
+
+// ─── Mode Switch ────────────────────────────────────────────
+function switchMode(mode) {
+  document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add("active");
+  document.getElementById("student-mode").classList.toggle("hidden", mode !== "student");
+  document.getElementById("coordinator-mode").classList.toggle("hidden", mode !== "coordinator");
+  if (mode === "coordinator" && adminKey) refreshDashboard();
+}
+
+// ─── Toggle Sections ────────────────────────────────────────
+function toggleSection(id) {
+  const el = $(id);
+  const arrow = $(`arrow-${id}`);
+  el.classList.toggle("hidden");
+  arrow.classList.toggle("open");
+}
+
+// ─── Student: Lookup ───────────────────────────────────────
+async function lookupStudent() {
+  const srcode = $("lookup-srcode").value.trim();
+  if (!srcode) { showMsg("Enter an SR-Code", "error"); return; }
+
+  const { ok, data } = await api("GET", null, `action=get&srcode=${encodeURIComponent(srcode)}`);
+  if (!ok) {
+    $("lookup-result").innerHTML = `<div class="msg msg-error">Student not found. Register below.</div>`;
+    currentStudent = null;
+    $("student-checklist").classList.add("hidden");
+    return;
+  }
+
+  currentStudent = data.student;
+  renderStudentChecklist(data.student);
+  $("lookup-result").innerHTML = `<div class="msg msg-success">Found: <strong>${data.student.name}</strong> (${data.student.srcode})</div>`;
+}
+
+// ─── Student: Register ─────────────────────────────────────
+async function registerStudent() {
+  const srcode = $("reg-srcode").value.trim();
+  const name = $("reg-name").value.trim();
+  const section = $("reg-section").value.trim();
+  const semester = $("reg-semester").value;
+  const course = $("reg-course").value;
+
+  if (!srcode || !name || !section || !semester || !course) {
+    showMsg("Please fill in all fields", "error");
+    return;
+  }
+
+  const { ok, data } = await api("POST", { action: "register", srcode, name, section, semester, course });
+  if (!ok) { showMsg(data.error || "Registration failed", "error"); return; }
+
+  showMsg("✅ Registered successfully! Now check off your Pre-OJT requirements.", "success");
+
+  // Auto-fill lookup and show checklist
+  currentStudent = { srcode, name, section, semester, course, preOjt: {}, postOjt: {}, verifiedPre: {}, verifiedPost: {} };
+  $("lookup-srcode").value = srcode;
+  renderStudentChecklist(currentStudent);
+}
+
+// ─── Student: Render Checklist ─────────────────────────────
+function renderStudentChecklist(student) {
+  currentStudent = student;
+  $("student-checklist").classList.remove("hidden");
+
+  const preVerCount = Object.keys(student.verifiedPre || {}).length;
+  const postVerCount = Object.keys(student.verifiedPost || {}).length;
+  const allPreDone = preVerCount >= PRE_OJT.length;
+
+  // Pre-OJT
+  const preList = $("pre-checklist");
+  preList.innerHTML = "";
+  PRE_OJT.forEach((req, i) => {
+    const checked = student.preOjt?.[i] === true;
+    const verified = !!student.verifiedPre?.[i];
+    const verifiedDate = student.verifiedPre?.[i] || "";
+    const li = document.createElement("li");
+    li.className = verified ? "verified" : checked ? "checked" : "";
+    li.innerHTML = `
+      <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
+        onchange="updatePreOjt(${i}, this.checked)">
+      <span class="req-name">${req}</span>
+      ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
+        checked ? `<span class="req-status">Submitted (pending verification)</span>` :
+        `<span class="req-status">Not yet submitted</span>`}
+    `;
+    preList.appendChild(li);
+  });
+
+  // Post-OJT
+  const postSection = $("post-section");
+  const postArrow = $("arrow-post-section");
+  if (allPreDone) {
+    postSection.classList.remove("hidden");
+    postArrow.classList.add("open");
+  } else {
+    postSection.classList.add("hidden");
+    postArrow.classList.remove("open");
+  }
+
+  const postList = $("post-checklist");
+  postList.innerHTML = "";
+  POST_OJT.forEach((req, i) => {
+    const checked = student.postOjt?.[i] === true;
+    const verified = !!student.verifiedPost?.[i];
+    const verifiedDate = student.verifiedPost?.[i] || "";
+    const li = document.createElement("li");
+    li.className = verified ? "verified" : checked ? "checked" : "";
+    li.innerHTML = `
+      <input type="checkbox" ${checked ? "checked" : ""} ${verified ? "disabled" : ""}
+        onchange="updatePostOjt(${i}, this.checked)">
+      <span class="req-name">${req}</span>
+      ${verified ? `<span class="verified-badge">✔ Verified ${verifiedDate}</span>` :
+        checked ? `<span class="req-status">Submitted (pending verification)</span>` :
+        `<span class="req-status">Not yet submitted</span>`}
+    `;
+    postList.appendChild(li);
+  });
+}
+
+// ─── Student: Update Pre-OJT ────────────────────────────────
+async function updatePreOjt(index, checked) {
+  if (!currentStudent) return;
+  const preOjt = { ...currentStudent.preOjt, [index]: checked };
+  currentStudent.preOjt = preOjt;
+
+  await api("POST", {
+    action: "register",
+    srcode: currentStudent.srcode,
+    name: currentStudent.name,
+    section: currentStudent.section,
+    semester: currentStudent.semester,
+    course: currentStudent.course,
+    preOjt,
+  });
+}
+
+// ─── Student: Update Post-OJT ───────────────────────────────
+async function updatePostOjt(index, checked) {
+  if (!currentStudent) return;
+  const postOjt = { ...currentStudent.postOjt, [index]: checked };
+  currentStudent.postOjt = postOjt;
+
+  await api("POST", {
+    action: "update-post",
+    srcode: currentStudent.srcode,
+    postOjt,
+  });
+}
+
+// ─── Coordinator: Login ─────────────────────────────────────
+function loginAdmin() {
+  const key = $("admin-key").value.trim();
+  if (!key) { showMsg("Enter your admin key", "error"); return; }
+  adminKey = key;
+  $("admin-login-card").classList.add("hidden");
+  $("admin-dashboard").classList.remove("hidden");
+  refreshDashboard();
+}
+
+// ─── Coordinator: Dashboard ────────────────────────────────
+async function refreshDashboard() {
+  const { ok, data } = await api("GET");
+  if (!ok) { showMsg("Failed to load dashboard", "error"); return; }
+
+  const { students, stats } = data;
+
+  // Stats
+  $("stats-grid").innerHTML = `
+    <div class="stat-card"><div class="num">${stats.total}</div><div class="label">Total Students</div></div>
+    <div class="stat-card"><div class="num">${stats.completed}</div><div class="label">Completed</div></div>
+    <div class="stat-card"><div class="num">${stats.inProgress}</div><div class="label">In Progress</div></div>
+  `;
+
+  // Render tables
+  renderAllTable(students, stats);
+  renderPendingTable(students, stats);
+  renderCompleteTable(students, stats);
+}
+
+function renderAllTable(students, stats) {
+  if (students.length === 0) {
+    $("all-students-table").innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px;">No students registered yet.</p>';
+    return;
+  }
+
+  let html = `<table>
+    <thead><tr>
+      <th>SR-Code</th><th>Name</th><th>Section</th><th>Semester</th><th>Course</th>
+      <th>Pre-OJT</th><th>Post-OJT</th><th>Status</th><th>Action</th>
+    </tr></thead><tbody>`;
+
+  students.forEach(s => {
+    const preCount = Object.keys(s.verifiedPre || {}).length;
+    const postCount = Object.keys(s.verifiedPost || {}).length;
+    const submittedPre = Object.keys(s.preOjt || {}).length;
+    const submittedPost = Object.keys(s.postOjt || {}).length;
+    const complete = preCount >= stats.preRequirements.length && postCount >= stats.postRequirements.length;
+
+    let statusHtml = complete
+      ? '<span class="status-badge status-complete">COMPLETE</span>'
+      : `<span class="status-badge status-incomplete">${preCount}/${stats.preRequirements.length} Pre · ${postCount}/${stats.postRequirements.length} Post</span>`;
+
+    html += `<tr>
+      <td><strong>${s.srcode}</strong></td>
+      <td>${s.name}</td>
+      <td>${s.section}</td>
+      <td>${s.semester}</td>
+      <td>${s.course}</td>
+      <td>${submittedPre}/${stats.preRequirements.length}<br><small style="color:#94a3b8;">${preCount} verified</small></td>
+      <td>${submittedPost}/${stats.postRequirements.length}<br><small style="color:#94a3b8;">${postCount} verified</small></td>
+      <td>${statusHtml}</td>
+      <td><button class="btn btn-sm btn-secondary" onclick="openVerifyModal('${s.srcode}')">Verify</button></td>
+    </tr>`;
+  });
+
+  html += "</tbody></table>";
+  $("all-students-table").innerHTML = html;
+}
+
+function renderPendingTable(students, stats) {
+  const pending = students.filter(s => {
+    const pre = Object.keys(s.preOjt || {}).length;
+    const post = Object.keys(s.postOjt || {}).length;
+    const preVer = Object.keys(s.verifiedPre || {}).length;
+    const postVer = Object.keys(s.verifiedPost || {}).length;
+    return (pre > preVer || post > postVer) && !(preVer >= stats.preRequirements.length && postVer >= stats.postRequirements.length);
+  });
+
+  if (pending.length === 0) {
+    $("pending-table").innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px;">No pending verifications. All caught up! 🎉</p>';
+    return;
+  }
+
+  let html = `<table><thead><tr>
+    <th>SR-Code</th><th>Name</th><th>Section</th><th>Pending Items</th><th>Action</th>
+  </tr></thead><tbody>`;
+
+  pending.forEach(s => {
+    const missingPre = stats.preRequirements.filter((_, i) => s.preOjt?.[i] && !s.verifiedPre?.[i]);
+    const missingPost = stats.postRequirements.filter((_, i) => s.postOjt?.[i] && !s.verifiedPost?.[i]);
+    const pendingItems = [...missingPre.map(r => `📄 ${r}`), ...missingPost.map(r => `🏁 ${r}`)];
+
+    html += `<tr>
+      <td>${s.srcode}</td><td>${s.name}</td><td>${s.section}</td>
+      <td><small>${pendingItems.slice(0, 3).join("<br>")}${pendingItems.length > 3 ? `<br>...and ${pendingItems.length - 3} more` : ""}</small></td>
+      <td><button class="btn btn-sm btn-primary" onclick="openVerifyModal('${s.srcode}')">Verify</button></td>
+    </tr>`;
+  });
+
+  html += "</tbody></table>";
+  $("pending-table").innerHTML = html;
+}
+
+function renderCompleteTable(students, stats) {
+  const complete = students.filter(s => {
+    const pre = Object.keys(s.verifiedPre || {}).length;
+    const post = Object.keys(s.verifiedPost || {}).length;
+    return pre >= stats.preRequirements.length && post >= stats.postRequirements.length;
+  });
+
+  if (complete.length === 0) {
+    $("complete-table").innerHTML = '<p style="color:#94a3b8;text-align:center;padding:40px;">No students have completed all requirements yet.</p>';
+    return;
+  }
+
+  let html = `<table><thead><tr>
+    <th>SR-Code</th><th>Name</th><th>Section</th><th>Course</th><th>Completion Date</th>
+  </tr></thead><tbody>`;
+
+  complete.forEach(s => {
+    // Find the latest verification date
+    const dates = [...Object.values(s.verifiedPre || {}), ...Object.values(s.verifiedPost || {})].filter(Boolean);
+    const lastDate = dates.sort().reverse()[0] || "N/A";
+
+    html += `<tr>
+      <td>${s.srcode}</td><td>${s.name}</td><td>${s.section}</td><td>${s.course}</td>
+      <td>${lastDate}</td>
+    </tr>`;
+  });
+
+  html += "</tbody></table>";
+  $("complete-table").innerHTML = html;
+}
+
+// ─── Coordinator: Verify Modal ────────────────────────────
+async function openVerifyModal(srcode) {
+  const { ok, data } = await api("GET", null, `action=get&srcode=${encodeURIComponent(srcode)}`);
+  if (!ok) { showMsg("Student not found", "error"); return; }
+
+  const s = data.student;
+  $("modal-title").textContent = `Verify Requirements — ${s.name}`;
+  $("modal-student").textContent = `${s.srcode} · ${s.section} · ${s.course}`;
+
+  let html = "";
+
+  html += `<h3 style="color:#f1f5f9;margin:16px 0 8px;">Pre-OJT Requirements</h3><ul class="checklist" style="margin-bottom:16px;">`;
+  PRE_OJT.forEach((req, i) => {
+    const submitted = s.preOjt?.[i] === true;
+    const verified = s.verifiedPre?.[i];
+    html += `<li class="${verified ? 'verified' : submitted ? 'checked' : ''}">
+      <span class="req-name">${req}</span>
+      ${verified ? `<span class="verified-badge">✔ ${verified}</span>` :
+        submitted ? `<button class="btn btn-sm btn-success" onclick="verifyReq('${s.srcode}','pre',${i})">✓ Verify</button>` :
+        `<span class="req-status">Not submitted</span>`}
+    </li>`;
+  });
+
+  html += `<h3 style="color:#f1f5f9;margin:16px 0 8px;">Post-OJT Requirements</h3><ul class="checklist">`;
+  POST_OJT.forEach((req, i) => {
+    const submitted = s.postOjt?.[i] === true;
+    const verified = s.verifiedPost?.[i];
+    html += `<li class="${verified ? 'verified' : submitted ? 'checked' : ''}">
+      <span class="req-name">${req}</span>
+      ${verified ? `<span class="verified-badge">✔ ${verified}</span>` :
+        submitted ? `<button class="btn btn-sm btn-success" onclick="verifyReq('${s.srcode}','post',${i})">✓ Verify</button>` :
+        `<span class="req-status">Not submitted</span>`}
+    </li>`;
+  });
+
+  html += "</ul>";
+
+  html += `<div style="margin-top:16px;display:flex;gap:8px;">
+    <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.srcode}')">🗑 Delete Entry</button>
+    <button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>
+  </div>`;
+
+  $("modal-content").innerHTML = html;
+  $("verify-modal").classList.add("show");
+}
+
+function closeModal() {
+  $("verify-modal").classList.remove("show");
+  refreshDashboard();
+}
+
+async function verifyReq(srcode, type, index) {
+  const { ok, data } = await api("POST", { action: "verify", srcode, type, index });
+  if (!ok) { showMsg(data.error || "Verification failed", "error"); return; }
+  showMsg("✅ Requirement verified!", "success");
+  openVerifyModal(srcode); // Re-render modal
+}
+
+async function deleteStudent(srcode) {
+  if (!confirm(`Delete ${srcode}? This cannot be undone.`)) return;
+  const { ok, data } = await api("POST", { action: "delete", srcode });
+  if (!ok) { showMsg(data.error || "Delete failed", "error"); return; }
+  showMsg("🗑 Entry deleted", "info");
+  closeModal();
+}
+
+// ─── Tab Switching ──────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add("active");
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  $(`tab-${tab}`).classList.add("active");
+}
+
+// ─── Export ──────────────────────────────────────────────────
+async function exportCSV() {
+  const { ok, data } = await api("GET", null, "action=export");
+  if (!ok) { showMsg("Export failed", "error"); return; }
+  $("export-box").value = data.csv;
+  $("export-area").classList.remove("hidden");
+}
+
+function copyExport() {
+  const box = $("export-box");
+  box.select();
+  document.execCommand("copy");
+  showMsg("📋 CSV copied to clipboard!", "success");
+}
+
+// ─── GET helper wrapper ──────────────────────────────────────
+function api(method, body, queryString) {
+  const opts = {
+    method,
+    headers: { "Content-Type": "application/json" },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  if (adminKey) opts.headers["x-admin-key"] = adminKey;
+
+  let url = `${API_BASE}/api/ojt`;
+  if (queryString) url += `?${queryString}`;
+
+  return fetch(url, opts).then(async res => {
+    const data = await res.json();
+    return { ok: res.ok, status: res.status, data };
+  }).catch(e => ({ ok: false, status: 0, data: { error: e.message } }));
+}
+
+// Init
+console.log("OJT Tracker loaded. Ready for students!");
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/ojt.mjs": {
+      "maxDuration": 30
+    }
+  }
+}
