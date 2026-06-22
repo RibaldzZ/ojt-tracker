@@ -1,24 +1,10 @@
-/**
- * ARISE! OJT Tracker API
- * Vercel serverless — Google Sheets backed
- *
- * POST /api/ojt
- *   { action: "register", ... }  — Student self-registration
- *   { action: "verify", ... }    — Coordinator verifies submission
- *   { action: "update-post", ... } — Student updates post-OJT
- *   { action: "delete", ... }    — Coordinator deletes student
- * GET /api/ojt?action=get-all      — All students (coordinator)
- * GET /api/ojt?action=get&srcode=X — Single student
- * GET /api/ojt?action=export       — CSV-friendly data
- * POST /api/ojt?action=init        — Create sheet (first run)
- */
-
 import { createPrivateKey, createSign } from "crypto";
+import { writeFileSync } from "fs";
 
 // ─── Config ──────────────────────────────────────────────────
 const SHEET_ID = process.env.OJT_SHEET_ID;
-const CREDENTIALS_B64 = process.env.GOOGLE_SHEETS_CREDENTIALS; // base64 of service account JSON
-const ADMIN_KEY = process.env.OJT_ADMIN_KEY || ""; // Monarch's admin key
+const CREDENTIALS_B64 = process.env.GOOGLE_SHEETS_CREDENTIALS;
+const ADMIN_KEY = process.env.OJT_ADMIN_KEY || "";
 
 // ─── Pre-OJT Requirements ────────────────────────────────────
 const PRE_OJT = [
@@ -54,17 +40,24 @@ function buildCredentials() {
     }
   }
 
-  // Option 2: Individual env vars
+  // Option 2: Individual env vars (raw key without PEM headers)
   if (process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL) {
-    const pk = process.env.GCP_PRIVATE_KEY;
-    // Log key details for debugging
-    console.error("PK_LENGTH:", pk.length);
-    console.error("PK_START:", pk.substring(0, 60));
-    console.error("PK_END:", pk.substring(pk.length - 40));
-    console.error("PK_HAS_BEGIN:", pk.includes("-----BEGIN"));
-    console.error("PK_HAS_END:", pk.includes("-----END"));
-    console.error("PK_NEWLINES:", (pk.match(/\n/g) || []).length);
-    console.error("PK_ESCAPED_N:", pk.includes("\\n"));
+    let pk = process.env.GCP_PRIVATE_KEY;
+
+    // The env var has raw key content (no PEM headers), so we need to wrap it
+    // Handle escaped newlines (\\n) -> actual newlines
+    if (pk.includes("\\n")) pk = pk.replace(/\\n/g, "\n");
+    // Normalize line endings
+    pk = pk.replace(/\r\n/g, "\n");
+    // Remove any existing PEM wrappers that might exist
+    pk = pk.replace(/-----BEGIN.*PRIVATE KEY-----/g, "").trim();
+    pk = pk.replace(/-----END.*PRIVATE KEY-----/g, "").trim();
+    // Remove empty lines and normalize
+    pk = pk.split("\n").filter(l => l.trim()).join("\n");
+    // Wrap with PEM headers
+    pk = "-----BEGIN PRIVATE KEY-----\n" + pk + "\n-----END PRIVATE KEY-----";
+
+    console.error("PK wrapped: starts with", pk.substring(0, 35));
 
     return {
       type: "service_account",
