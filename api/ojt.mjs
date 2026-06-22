@@ -13,7 +13,6 @@
  * POST /api/ojt?action=init        — Create sheet (first run)
  */
 
-import { GoogleAuth } from "google-auth-library";
 import { createHash } from "crypto";
 
 // ─── Config ──────────────────────────────────────────────────
@@ -138,22 +137,28 @@ async function getAuth() {
 
   const creds = buildCredentials();
 
-  // Write creds to temp file and use keyFile (avoids private key parsing issues)
-  const fs = await import("fs");
-  const tmpPath = "/tmp/sa-creds-" + Date.now() + ".json";
-  fs.writeFileSync(tmpPath, JSON.stringify(creds, null, 2));
-
-  const auth = new GoogleAuth({
-    keyFile: tmpPath,
+  // Use JWT directly - avoids GoogleAuth credential parsing issues
+  const { JWT } = await import("google-auth-library");
+  const client = new JWT({
+    email: creds.client_email,
+    key: creds.private_key,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-  authClient = await auth.getClient();
+
+  // Test the connection immediately
+  const token = await client.getAccessToken();
+  if (!token || !token.token) {
+    throw new Error("Failed to get access token with provided credentials");
+  }
+
+  authClient = client;
   return authClient;
 }
 
 async function sheetsApi(method, path, body) {
   const auth = await getAuth();
-  const token = await auth.getAccessToken();
+  const tokenResult = await auth.getAccessToken();
+  const token = tokenResult?.token || tokenResult;
   const url = `https://sheets.googleapis.com/v4/spreadsheets${path}`;
   const res = await fetch(url, {
     method,
