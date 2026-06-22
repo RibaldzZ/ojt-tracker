@@ -130,35 +130,90 @@ function checkRateLimit(req) {
 
 // ─── Google Sheets helpers ────────────────────────────────────
 
-let authClient = null;
+let cachedToken = null;
+let tokenExpiry = 0;
 
-async function getAuth() {
-  if (authClient) return authClient;
-
-  const creds = buildCredentials();
-
-  // Use JWT directly - avoids GoogleAuth credential parsing issues
-  const { JWT } = await import("google-auth-library");
-  const client = new JWT({
-    email: creds.client_email,
-    key: creds.private_key,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-  });
-
-  // Test the connection immediately
-  const token = await client.getAccessToken();
-  if (!token || !token.token) {
-    throw new Error("Failed to get access token with provided credentials");
+async function getAccessToken() {
+  // Return cached token if still valid (>5 min buffer)
+  if (cachedToken && Date.now() < tokenExpiry - 300000) {
+    return cachedToken;
   }
 
-  authClient = client;
-  return authClient;
+  const creds = buildCredentials();
+  const { private_key, client_email } = creds;
+
+  // Build JWT assertion manually and exchange for OAuth2 token
+  // This bypasses ALL Google library PEM parsing
+  const crypto = await import("crypto");
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: client_email,
+    scope: "https://www.googleapis.com/auth/spreadsheets",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now,
+  };
+
+  const b64 = (obj) =>
+    Buffer.from(JSON.stringify(obj))
+      .toString("base64")
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const signatureInput = b64(header) + "." + b64(claim);
+
+  // Normalize private key: handle both PEM and raw, escaped and actual newlines
+  let pemKey = private_key;
+  // Replace literal \n with actual newlines
+  if (pemKey.includes("\\n")) pemKey = pemKey.replace(/\\n/g, "\n");
+  // Ensure proper line endings
+  pemKey = pemKey.replace(/\r\n/g, "\n");
+  // Add PEM wrappers if missing
+  if (!pemKey.includes("-----BEGIN PRIVATE KEY-----")) {
+    const content = pemKey
+      .replace(/-----BEGIN RSA PRIVATE KEY-----/g, "")
+      .replace(/-----END RSA PRIVATE KEY-----/g, "")
+      .trim();
+    pemKey = "-----BEGIN PRIVATE KEY-----\n" + content + "\n-----END PRIVATE KEY-----";
+  }
+
+  const sign = crypto.createSign("RSA-SHA256");
+  sign.update(signatureInput);
+  sign.end();
+  const signature = sign.sign(pemKey, "base64");
+  const signatureB64 = signature
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  const jwt = signatureInput + "." + signatureB64;
+
+  // Exchange JWT for access token
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    const errBody = await tokenRes.text();
+    throw new Error(`Token exchange failed (${tokenRes.status}): ${errBody}`);
+  }
+
+  const tokenData = await tokenRes.json();
+  cachedToken = tokenData.access_token;
+  tokenExpiry = Date.now() + tokenData.expires_in * 1000;
+  return cachedToken;
 }
 
 async function sheetsApi(method, path, body) {
-  const auth = await getAuth();
-  const tokenResult = await auth.getAccessToken();
-  const token = tokenResult?.token || tokenResult;
+  const token = await getAccessToken();
   const url = `https://sheets.googleapis.com/v4/spreadsheets${path}`;
   const res = await fetch(url, {
     method,
@@ -497,34 +552,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("OJT API Error:", error);
-    const hasB64 = !!CREDENTIALS_B64;
-    const hasVars = !!(process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL);
-
-    let processedPkInfo = "N/A";
-    try {
-      if (hasVars) {
-        const pk = buildCredentials().private_key;
-        processedPkInfo = {
-          startsWith: pk.substring(0, 35),
-          endsWith: pk.substring(pk.length - 30),
-          length: pk.length,
-          hasBegin: pk.startsWith("-----BEGIN PRIVATE KEY-----"),
-          hasEnd: pk.includes("-----END PRIVATE KEY-----"),
-          newlines: (pk.match(/\n/g) || []).length,
-        };
-      }
-    } catch (e) {
-      processedPkInfo = "Build failed: " + e.message;
-    }
-
     return res.status(500).json({
       error: error.message,
       hint: "Make sure the sheet is shared with gradesheet-bot@angular-glyph-498713-t5.iam.gserviceaccount.com",
-      diagnostics: {
-        hasBase64EnvVar: hasB64,
-        hasIndividualVars: hasVars,
-        processedPrivateKey: processedPkInfo,
-      },
     });
   }
 }
