@@ -13,7 +13,7 @@
  * POST /api/ojt?action=init        — Create sheet (first run)
  */
 
-import { createHash } from "crypto";
+import { createPrivateKey, createSign } from "crypto";
 
 // ─── Config ──────────────────────────────────────────────────
 const SHEET_ID = process.env.OJT_SHEET_ID;
@@ -54,33 +54,17 @@ function buildCredentials() {
     }
   }
 
-  // Option 2: Individual env vars (less prone to paste corruption)
+  // Option 2: Individual env vars
   if (process.env.GCP_PRIVATE_KEY && process.env.GCP_CLIENT_EMAIL) {
-    let pk = process.env.GCP_PRIVATE_KEY;
-
-    // Log raw key info for debugging
-    console.log("Raw PK length:", pk.length);
-    console.log("Raw PK starts with:", pk.substring(0, 40));
-    console.log("Raw PK has BEGIN:", pk.includes("BEGIN PRIVATE KEY"));
-    console.log("Raw PK has END:", pk.includes("END PRIVATE KEY"));
-
-    // Strip any existing PEM wrappers first
-    pk = pk.replace(/-----BEGIN PRIVATE KEY-----/g, "");
-    pk = pk.replace(/-----END PRIVATE KEY-----/g, "");
-    pk = pk.trim();
-
-    // Handle both actual newlines and escaped \n, plus CRLF
-    pk = pk.replace(/\\n/g, "\n");
-    pk = pk.replace(/\r\n/g, "\n");
-
-    // Now clean up: remove any whitespace-only lines
-    pk = pk.split("\n").filter(line => line.trim() !== "").join("\n");
-
-    // Wrap properly
-    pk = "-----BEGIN PRIVATE KEY-----\n" + pk + "\n-----END PRIVATE KEY-----";
-
-    console.log("Processed PK starts with:", pk.substring(0, 40));
-    console.log("Processed PK ends with:", pk.substring(pk.length - 30));
+    const pk = process.env.GCP_PRIVATE_KEY;
+    // Log key details for debugging
+    console.error("PK_LENGTH:", pk.length);
+    console.error("PK_START:", pk.substring(0, 60));
+    console.error("PK_END:", pk.substring(pk.length - 40));
+    console.error("PK_HAS_BEGIN:", pk.includes("-----BEGIN"));
+    console.error("PK_HAS_END:", pk.includes("-----END"));
+    console.error("PK_NEWLINES:", (pk.match(/\n/g) || []).length);
+    console.error("PK_ESCAPED_N:", pk.includes("\\n"));
 
     return {
       type: "service_account",
@@ -142,10 +126,7 @@ async function getAccessToken() {
   const creds = buildCredentials();
   const { private_key, client_email } = creds;
 
-  // Build JWT assertion manually and exchange for OAuth2 token
-  // This bypasses ALL Google library PEM parsing
-  const crypto = await import("crypto");
-
+  // Build JWT assertion and exchange for OAuth2 token directly
   const header = { alg: "RS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
   const claim = {
@@ -165,25 +146,12 @@ async function getAccessToken() {
 
   const signatureInput = b64(header) + "." + b64(claim);
 
-  // Normalize private key: handle both PEM and raw, escaped and actual newlines
-  let pemKey = private_key;
-  // Replace literal \n with actual newlines
-  if (pemKey.includes("\\n")) pemKey = pemKey.replace(/\\n/g, "\n");
-  // Ensure proper line endings
-  pemKey = pemKey.replace(/\r\n/g, "\n");
-  // Add PEM wrappers if missing
-  if (!pemKey.includes("-----BEGIN PRIVATE KEY-----")) {
-    const content = pemKey
-      .replace(/-----BEGIN RSA PRIVATE KEY-----/g, "")
-      .replace(/-----END RSA PRIVATE KEY-----/g, "")
-      .trim();
-    pemKey = "-----BEGIN PRIVATE KEY-----\n" + content + "\n-----END PRIVATE KEY-----";
-  }
-
-  const sign = crypto.createSign("RSA-SHA256");
+  // Parse the PEM key using crypto module
+  const keyObject = createPrivateKey(private_key);
+  const sign = createSign("RSA-SHA256");
   sign.update(signatureInput);
   sign.end();
-  const signature = sign.sign(pemKey, "base64");
+  const signature = sign.sign(keyObject, "base64");
   const signatureB64 = signature
     .replace(/=/g, "")
     .replace(/\+/g, "-")
