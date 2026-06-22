@@ -235,11 +235,11 @@ const HEADERS = [
   "Section",
   "Semester",
   "Course",
-  "Company",
   "PreOJT",       // JSON: {"0":true, "1":false, ...}
   "PostOJT",      // JSON: {"0":false, "1":false, ...}
   "VerifiedPre",  // JSON: {"0":"2026-06-22", ...}
   "VerifiedPost", // JSON: {"0":"", ...}
+  "Company",      // Text: deployment company/agency
 ];
 
 async function ensureSheet() {
@@ -272,11 +272,11 @@ function rowToStudent(row) {
     section: row[3] || "",
     semester: row[4] || "",
     course: row[5] || "",
-    company: row[6] || "",
-    preOjt: safeParse(row[7]),
-    postOjt: safeParse(row[8]),
-    verifiedPre: safeParse(row[9]),
-    verifiedPost: safeParse(row[10]),
+    preOjt: safeParse(row[6]),
+    postOjt: safeParse(row[7]),
+    verifiedPre: safeParse(row[8]),
+    verifiedPost: safeParse(row[9]),
+    company: row[10] || "",
   };
 }
 
@@ -309,19 +309,22 @@ async function handleRegister(body) {
     const mergedPre = { ...student.preOjt, ...(preOjt || {}) };
     const mergedPost = { ...student.postOjt, ...(postOjt || {}) };
     // Update company (preserve existing if not sending new one)
-    const mergedCompany = company ?? student.company;
+    const mergedCompany = company !== undefined ? company : student.company;
 
     await updateValues(`${MASTER_SHEET}!A${existing + 1}:K${existing + 1}`, [
-      [rows[existing][0], srcode, name, section, semester, course, mergedCompany,
+      [rows[existing][0], srcode, name, section, semester, course,
        JSON.stringify(mergedPre), JSON.stringify(mergedPost),
-       JSON.stringify(student.verifiedPre), JSON.stringify(student.verifiedPost)]
+       JSON.stringify(student.verifiedPre), JSON.stringify(student.verifiedPost),
+       mergedCompany]
     ]);
     return { status: 200, json: { ok: true, message: "Updated existing entry" } };
   }
 
   // New registration
   await appendValues(`${MASTER_SHEET}!A:K`, [
-    [now, srcode, name, section, semester, course, company || "", preOjtJson, "{}", verifiedPreJson, verifiedPostJson]
+    [now, srcode, name, section, semester, course,
+     preOjtJson, "{}", verifiedPreJson, verifiedPostJson,
+     company || ""]
   ]);
   return { status: 200, json: { ok: true, message: "Registered successfully" } };
 }
